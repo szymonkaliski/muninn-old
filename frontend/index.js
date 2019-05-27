@@ -1,13 +1,15 @@
 const React = require("react");
 const ReactDOM = require("react-dom");
-const remark = require("remark");
-const remarkToReact = require("remark-react");
-const stringify = require("remark-stringify");
 const { ClientSocket, useSocket } = require("use-socketio");
-const taskListPlugin = require("remark-task-list");
+
+const markdown = require("remark-parse");
+const stringify = require("remark-stringify");
+const unified = require("unified");
+
+const remarkDates = require("../remark-plugins/dates");
 
 const useRoute = require("./use-route");
-const { useState } = React;
+const { useState, useEffect } = React;
 
 require("tachyons");
 
@@ -21,63 +23,203 @@ const getMarkdown = (data, route) => {
   }, data);
 };
 
+const MarkdownHeading = ({ mdast, ...args }) => {
+  const el = `h${mdast.depth}`;
+
+  return React.createElement(el, {
+    children: mdast.children.map(child => (
+      <Markdown key={child.id} mdast={child} {...args} />
+    ))
+  });
+};
+
+const MarkdownText = ({ mdast }) => {
+  return mdast.value;
+};
+
+const MarkdownList = ({ mdast, ...args }) => {
+  const el = mdast.ordered ? "ol" : "ul";
+
+  return React.createElement(el, {
+    children: mdast.children.map(child => (
+      <Markdown key={child.id} mdast={child} {...args} />
+    ))
+  });
+};
+
+const MarkdownListItem = ({ mdast, onUpdate, ...args }) => {
+  const isTodo = mdast.checked !== null;
+
+  return (
+    <li>
+      {isTodo && (
+        <input
+          checked={mdast.checked}
+          type="checkbox"
+          onChange={() =>
+            onUpdate(mdast.id, { ...mdast, checked: !mdast.checked })
+          }
+        />
+      )}
+      {mdast.children[0].children.map(child => (
+        <Markdown key={child.id} mdast={child} {...args} />
+      ))}
+    </li>
+  );
+};
+
+const MarkdownParagraph = ({ mdast, ...args }) => {
+  return (
+    <p>
+      {mdast.children.map(child => (
+        <Markdown key={child.id} mdast={child} {...args} />
+      ))}
+    </p>
+  );
+};
+
+const MarkdownLink = ({ mdast, ...args }) => {
+  const isLocal = mdast.url.startsWith("./");
+  const url = isLocal ? mdast.url.replace("./", "/#/") : mdast.url;
+
+  return (
+    <a href={url}>
+      {mdast.children.map(child => (
+        <Markdown key={child.id} mdast={child} {...args} />
+      ))}
+    </a>
+  );
+};
+
+const MarkdownDue = ({ mdast }) => {
+  return <span className="gray">{mdast.value}</span>;
+};
+
+const MarkdownCode = ({ mdast }) => {
+  return <pre>{mdast.value}</pre>;
+};
+
+const Markdown = ({ mdast, onCommit, ...args }) => {
+  if (mdast.type === "root") {
+    return (
+      <>
+        {mdast.children.map(child => (
+          <Markdown
+            key={child.id}
+            mdast={child}
+            {...args}
+            onUpdate={(id, update) => {
+              const path = id.split("-").map(n => parseInt(n));
+              let tmpMdast = mdast.children;
+
+              path.forEach((p, i) => {
+                if (i < path.length - 1) {
+                  tmpMdast = tmpMdast[p].children;
+                } else {
+                  tmpMdast[p] = update;
+                }
+              });
+
+              onCommit(mdast);
+            }}
+          />
+        ))}
+      </>
+    );
+  } else if (mdast.type) {
+    const types = {
+      heading: MarkdownHeading,
+      text: MarkdownText,
+      list: MarkdownList,
+      listItem: MarkdownListItem,
+      paragraph: MarkdownParagraph,
+      link: MarkdownLink,
+      code: MarkdownCode,
+      due: MarkdownDue
+    };
+
+    if (types[mdast.type] === undefined) {
+      console.warn(`Unsupported type ${mdast.type}`, mdast);
+      return null;
+    }
+
+    return React.createElement(types[mdast.type], {
+      key: mdast.id,
+      mdast,
+      ...args
+    });
+  } else {
+    console.warn("Something went wrong", mdast);
+    return null;
+  }
+};
+
+const withIds = (parsed, currentKey) => {
+  if (parsed.children) {
+    parsed.children.forEach((child, i) => {
+      const newKey = currentKey ? `${currentKey}-${i}` : `${i}`;
+
+      child.id = newKey;
+      withIds(child, newKey);
+    });
+  }
+
+  return parsed;
+};
+
 const App = () => {
   const [route, setRoute] = useRoute();
-  const [data, setData] = useState();
+  const [data, setData] = useState(null);
 
   const socket = useSocket("data", data => {
-    console.log({ data });
+    console.log("data from server", data);
     setData(data);
   });
 
+  useEffect(() => {
+    if (data === null) {
+      socket.emit("data");
+    }
+  }, [data]);
+
   const currentData = data && route ? getMarkdown(data, route) : undefined;
 
-  const currentMarkdown = currentData
-    ? remark()
-        .use(taskListPlugin)
-        .use(remarkToReact, {
-          remarkReactComponents: {
-            input: props => {
-              console.log("input", props);
+  if (!currentData) {
+    // TODO: automatic index?
+    return null;
+  }
 
-              const onChecked = id => {
-                const newText = remark()
-                  .use(stringify, { listItemIndent: 1 })
-                  .use(taskListPlugin, { toggle: [id] })
-                  .processSync(currentData.content).contents;
+  const parsed = withIds(
+    unified()
+      .use(markdown)
+      .use(remarkDates)
+      .parse(currentData.content)
+  );
 
-                console.log(newText);
-
-                socket.emit("update-content", {
-                  path: currentData.fullPath,
-                  content: newText
-                });
-              };
-
-              return (
-                <input
-                  type={props.type}
-                  checked={props.checked}
-                  onChange={e =>
-                    onChecked(
-                      e.target.parentElement.id.replace("user-content-", "")
-                    )
-                  }
-                />
-              );
-            }
-          }
-        })
-        .processSync(currentData.content).contents
-    : undefined;
-
-  console.log({ currentMarkdown });
+  console.log({ parsed });
 
   return (
     <div className="sans-serif w-80 center">
       <h4>{route.join("/")}</h4>
 
-      <div className="mt4">{currentMarkdown}</div>
+      <div className="mt4">
+        <Markdown
+          mdast={parsed}
+          route={route}
+          setRoute={setRoute}
+          onCommit={mdast => {
+            const stringified = unified()
+              .use(stringify, { listItemIndent: 1 })
+              .use(remarkDates)
+              .stringify(mdast);
+
+            socket.emit("update-content", {
+              path: currentData.fullPath,
+              content: stringified
+            });
+          }}
+        />
+      </div>
     </div>
   );
 };

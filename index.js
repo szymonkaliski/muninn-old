@@ -6,7 +6,7 @@ const http = require("http");
 const path = require("path");
 const { debounce, flatMap } = require("lodash");
 
-const PATH = "/users/Szymon/Documents/Dropbox/Tasks/";
+const PATH = path.join(__dirname, "test");
 const PORT = 3000;
 const IS_DEV = process.env.NODE_ENV !== "production";
 
@@ -25,7 +25,7 @@ gaze("**/*.md", { cwd: PATH }, (err, watcher) => {
       return;
     }
 
-    watchPath = watchPath.replace(`${PATH}`, "").split("/");
+    watchPath = watchPath.replace(`${PATH}/`, "").split("/");
 
     let dataPatch = data;
     let fullPath = [];
@@ -83,7 +83,9 @@ const io = createIO(server);
 io.on("connection", socket => {
   sockets[socket.id] = socket;
 
-  socket.emit("data", data);
+  socket.on("data", () => {
+    socket.emit("data", data);
+  });
 
   socket.on("disconnect", () => {
     delete sockets[socket.id];
