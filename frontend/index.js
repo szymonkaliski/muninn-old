@@ -1,6 +1,7 @@
 const React = require("react");
 const ReactDOM = require("react-dom");
 const { ClientSocket, useSocket } = require("use-socketio");
+const Prism = require("prismjs");
 
 const markdown = require("remark-parse");
 const stringify = require("remark-stringify");
@@ -11,6 +12,7 @@ const remarkDates = require("../remark-plugins/dates");
 const useRoute = require("./use-route");
 const { useState, useEffect } = React;
 
+require("prismjs/themes/prism.css");
 require("tachyons");
 
 const getMarkdown = (data, route) => {
@@ -54,6 +56,7 @@ const MarkdownListItem = ({ mdast, onUpdate, ...args }) => {
     <li>
       {isTodo && (
         <input
+          className="mr2"
           checked={mdast.checked}
           type="checkbox"
           onChange={() =>
@@ -96,7 +99,15 @@ const MarkdownDue = ({ mdast }) => {
 };
 
 const MarkdownCode = ({ mdast }) => {
-  return <pre>{mdast.value}</pre>;
+  const { lang, value: code } = mdast;
+
+  const html = Prism.highlight(code, Prism.languages[lang], lang);
+
+  return <pre dangerouslySetInnerHTML={{ __html: html }} />;
+};
+
+const MarkdownImage = ({ mdast }) => {
+  return <img src={mdast.url} alt={mdast.alt} />;
 };
 
 const Markdown = ({ mdast, onCommit, ...args }) => {
@@ -135,6 +146,7 @@ const Markdown = ({ mdast, onCommit, ...args }) => {
       paragraph: MarkdownParagraph,
       link: MarkdownLink,
       code: MarkdownCode,
+      image: MarkdownImage,
       due: MarkdownDue
     };
 
@@ -209,7 +221,7 @@ const App = () => {
           setRoute={setRoute}
           onCommit={mdast => {
             const stringified = unified()
-              .use(stringify, { listItemIndent: 1 })
+              .use(stringify, { listItemIndent: 1, fences: true })
               .use(remarkDates)
               .stringify(mdast);
 
