@@ -1,13 +1,16 @@
+const Prism = require("prismjs");
 const React = require("react");
 const ReactDOM = require("react-dom");
+const classNames = require("classnames");
 const { ClientSocket, useSocket } = require("use-socketio");
-const Prism = require("prismjs");
+const { get } = require("lodash");
+const { isToday, isBefore, isAfter, parse } = require("date-fns");
 
 const markdown = require("remark-parse");
 const stringify = require("remark-stringify");
 const unified = require("unified");
 
-const remarkDates = require("../remark-plugins/dates");
+const remarkDue = require("../remark-plugins/due");
 
 const useRoute = require("./use-route");
 const { useState, useEffect } = React;
@@ -36,7 +39,7 @@ const MarkdownHeading = ({ mdast, ...args }) => {
 };
 
 const MarkdownText = ({ mdast }) => {
-  return mdast.value;
+  return <span>{mdast.value}</span>;
 };
 
 const MarkdownList = ({ mdast, ...args }) => {
@@ -64,9 +67,11 @@ const MarkdownListItem = ({ mdast, onUpdate, ...args }) => {
           }
         />
       )}
-      {mdast.children[0].children.map(child => (
-        <Markdown key={child.id} mdast={child} {...args} />
-      ))}
+      <span className={mdast.checked ? "strike gray" : ""}>
+        {mdast.children[0].children.map(child => (
+          <Markdown key={child.id} mdast={child} {...args} />
+        ))}
+      </span>
     </li>
   );
 };
@@ -95,7 +100,25 @@ const MarkdownLink = ({ mdast, ...args }) => {
 };
 
 const MarkdownDue = ({ mdast }) => {
-  return <span className="gray">{mdast.value}</span>;
+  const dueDate = parse(mdast.date);
+
+  const dueToday = isToday(dueDate);
+  const duePast = isBefore(dueDate, Date.now());
+  const dueFuture = isAfter(dueDate, Date.now());
+
+  const checked = get(mdast, ["parent", "parent", "checked"], false);
+
+  return (
+    <span
+      className={classNames({
+        green: dueToday && !checked,
+        red: duePast && !checked,
+        gray: dueFuture || checked
+      })}
+    >
+      {mdast.value}
+    </span>
+  );
 };
 
 const MarkdownCode = ({ mdast }) => {
@@ -179,6 +202,17 @@ const withIds = (parsed, currentKey) => {
   return parsed;
 };
 
+const withParents = (parsed, parent) => {
+  if (parsed.children) {
+    parsed.children.forEach(child => {
+      child.parent = parent || parsed;
+      withParents(child, parent);
+    });
+  }
+
+  return parsed;
+};
+
 const App = () => {
   const [route, setRoute] = useRoute();
   const [data, setData] = useState(null);
@@ -201,11 +235,13 @@ const App = () => {
     return null;
   }
 
-  const parsed = withIds(
-    unified()
-      .use(markdown)
-      .use(remarkDates)
-      .parse(currentData.content)
+  const parsed = withParents(
+    withIds(
+      unified()
+        .use(markdown)
+        .use(remarkDue)
+        .parse(currentData.content)
+    )
   );
 
   console.log({ parsed });
@@ -222,7 +258,7 @@ const App = () => {
           onCommit={mdast => {
             const stringified = unified()
               .use(stringify, { listItemIndent: 1, fences: true })
-              .use(remarkDates)
+              .use(remarkDue)
               .stringify(mdast);
 
             socket.emit("update-content", {
