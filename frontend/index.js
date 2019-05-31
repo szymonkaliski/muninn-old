@@ -68,7 +68,7 @@ const MarkdownListItem = ({ mdast, onUpdate, ...args }) => {
         />
       )}
       <span className={mdast.checked ? "strike gray" : ""}>
-        {mdast.children[0].children.map(child => (
+        {mdast.children.map(child => (
           <Markdown key={child.id} mdast={child} {...args} />
         ))}
       </span>
@@ -77,6 +77,16 @@ const MarkdownListItem = ({ mdast, onUpdate, ...args }) => {
 };
 
 const MarkdownParagraph = ({ mdast, ...args }) => {
+  if (mdast.parent.type === "listItem") {
+    return (
+      <>
+        {mdast.children.map(child => (
+          <Markdown key={child.id} mdast={child} {...args} />
+        ))}
+      </>
+    );
+  }
+
   return (
     <p>
       {mdast.children.map(child => (
