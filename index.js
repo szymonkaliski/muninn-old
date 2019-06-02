@@ -6,7 +6,7 @@ const http = require("http");
 const path = require("path");
 const { debounce, flatMap } = require("lodash");
 
-const PATH = path.join(__dirname, "test");
+const PATH = path.join(__dirname, "test"); // TODO: argv parsing
 const PORT = 3000;
 const IS_DEV = process.env.NODE_ENV !== "production";
 

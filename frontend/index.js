@@ -4,13 +4,14 @@ const ReactDOM = require("react-dom");
 const classNames = require("classnames");
 const { ClientSocket, useSocket } = require("use-socketio");
 const { get } = require("lodash");
-const { isToday, isBefore, isAfter, parse } = require("date-fns");
+const path = require("path");
 
 const markdown = require("remark-parse");
 const stringify = require("remark-stringify");
 const unified = require("unified");
 
 const remarkDue = require("../remark-plugins/due");
+const { isToday, isBefore, isAfter, parse } = require("date-fns");
 
 const useRoute = require("./use-route");
 const { useState, useEffect } = React;
@@ -90,6 +91,9 @@ const MarkdownHeading = ({ mdast, ...args }) => {
   const el = `h${mdast.depth}`;
 
   return React.createElement(el, {
+    onClick: () => {
+      args.setEditingId(mdast.id);
+    },
     children: mdast.children.map(child => (
       <Markdown key={child.id} mdast={child} {...args} />
     ))
@@ -104,6 +108,9 @@ const MarkdownList = ({ mdast, ...args }) => {
   const el = mdast.ordered ? "ol" : "ul";
 
   return React.createElement(el, {
+    onClick: () => {
+      args.setEditingId(mdast.id);
+    },
     children: mdast.children.map(child => (
       <Markdown key={child.id} mdast={child} {...args} />
     ))
@@ -113,6 +120,8 @@ const MarkdownList = ({ mdast, ...args }) => {
 const MarkdownListItem = ({ mdast, ...args }) => {
   const isTodo = mdast.checked !== null;
 
+  const firstChild = mdast.children[0];
+
   return (
     <li>
       {isTodo && (
@@ -120,32 +129,43 @@ const MarkdownListItem = ({ mdast, ...args }) => {
           className="mr2"
           checked={mdast.checked}
           type="checkbox"
-          onChange={() =>
-            args.onUpdate(mdast.id, { ...mdast, checked: !mdast.checked })
-          }
+          onClick={e => {
+            e.stopPropagation();
+          }}
+          onChange={e => {
+            e.stopPropagation();
+
+            args.onUpdate(mdast.id, mdastFragment => {
+              mdastFragment.checked = !mdastFragment.checked;
+            });
+          }}
         />
       )}
+
       <span className={mdast.checked ? "strike gray" : ""}>
-        {mdast.children.map(child => (
-          <Markdown key={child.id} mdast={child} {...args} />
-        ))}
+        <Markdown
+          key={firstChild.id}
+          mdast={firstChild}
+          dontWrapParagraph={true}
+          {...args}
+        />
       </span>
+
+      {mdast.children.slice(1).map(child => (
+        <Markdown key={child.id} mdast={child} {...args} />
+      ))}
     </li>
   );
 };
 
-const MarkdownParagraph = ({ mdast, ...args }) => {
-  if (mdast.parent.type === "listItem") {
+const MarkdownParagraph = ({ mdast, dontWrapParagraph, ...args }) => {
+  if (dontWrapParagraph) {
     return (
-      <span
-        onClick={() => {
-          args.setEditingId(mdast.id);
-        }}
-      >
+      <>
         {mdast.children.map(child => (
           <Markdown key={child.id} mdast={child} {...args} />
         ))}
-      </span>
+      </>
     );
   }
 
@@ -164,10 +184,19 @@ const MarkdownParagraph = ({ mdast, ...args }) => {
 
 const MarkdownLink = ({ mdast, ...args }) => {
   const isLocal = mdast.url.startsWith("./");
-  const url = isLocal ? mdast.url.replace("./", "/#/") : mdast.url;
+
+  const url = isLocal
+    ? `/#/${path.join(args.route.slice(0, -1).join("/"), mdast.url)}`
+    : mdast.url;
 
   return (
-    <a href={url}>
+    <a
+      href={url}
+      target={!isLocal ? "_blank" : ""}
+      onClick={e => {
+        e.stopPropagation();
+      }}
+    >
       {mdast.children.map(child => (
         <Markdown key={child.id} mdast={child} {...args} />
       ))}
@@ -218,18 +247,19 @@ const MarkdownConcealEdit = ({ mdast, ...args }) => {
   const [text, setText] = useState(null);
 
   useEffect(() => {
-    if (!text) {
+    if (text === null) {
       setText(stringifyMdast(mdast));
     }
   }, [text]);
 
-  if (!text) {
+  if (text === null) {
     return null;
   }
 
   return (
     <textarea
-      className="bw0 pa0 bg-near-white"
+      className="bw0 pa0 bg-near-white w-100 code f6 pa2 lh-copy"
+      autoFocus={true}
       rows={text.split("\n").length}
       value={text}
       onChange={e => {
@@ -237,12 +267,17 @@ const MarkdownConcealEdit = ({ mdast, ...args }) => {
       }}
       onKeyDown={e => {
         if (e.key === "Escape") {
-          // FIXME: multiple children returned... - will need to fix onUpdate!
-          const newMdast = parseMarkdown(text).children[0];
+          const newMdast = parseMarkdown(text);
+          const currentId = parseInt(mdast.id); // assuming it's a single digit?
 
-          console.log({ newMdast, mdast })
+          args.onUpdate(mdast.id, mdastFramgent => {
+            mdastFramgent.parent.children = [
+              ...mdastFramgent.parent.children.slice(0, currentId),
+              ...newMdast.children,
+              ...mdastFramgent.parent.children.slice(currentId + 1)
+            ];
+          });
 
-          args.onUpdate(mdast.id, newMdast);
           args.setEditingId(null);
         }
       }}
@@ -258,25 +293,28 @@ const Markdown = ({ mdast, onCommit, ...args }) => {
       <>
         {mdast.children.map(child => {
           return (
-            <Markdown
-              key={child.id}
-              mdast={child}
-              {...args}
-              onUpdate={(id, update) => {
-                const path = id.split("-").map(n => parseInt(n));
-                let tmpMdast = mdast.children;
+            <div className="markdown-edit-hover">
+              <Markdown
+                key={child.id}
+                mdast={child}
+                {...args}
+                onUpdate={(id, callback) => {
+                  const path = id.split("-").map(n => parseInt(n));
 
-                path.forEach((p, i) => {
-                  if (i < path.length - 1) {
-                    tmpMdast = tmpMdast[p].children;
-                  } else {
-                    tmpMdast[p] = update;
-                  }
-                });
+                  let tmpMdast = mdast.children;
 
-                onCommit(mdast);
-              }}
-            />
+                  path.forEach((p, i) => {
+                    if (i < path.length - 1) {
+                      tmpMdast = tmpMdast[p].children;
+                    } else {
+                      callback(tmpMdast[p]);
+                    }
+                  });
+
+                  onCommit(mdast);
+                }}
+              />
+            </div>
           );
         })}
       </>
@@ -305,7 +343,7 @@ const Markdown = ({ mdast, onCommit, ...args }) => {
       ...args
     });
   } else {
-    console.warn("Something went wrong", mdast);
+    console.error("Something went wrong", mdast);
     return null;
   }
 };
@@ -319,7 +357,6 @@ const App = () => {
   const currentData = data && route ? getMarkdown(data, route) : undefined;
 
   const socket = useSocket("data", data => {
-    console.log("data from server", data);
     setData(data);
   });
 
@@ -342,13 +379,11 @@ const App = () => {
     return null;
   }
 
-  console.log({ mdast });
-
   return (
-    <div className="sans-serif w-80 center">
-      <h4>{route.join("/")}</h4>
+    <div className="sans-serif mw8 pa4 center min-vh-100">
+      <h4 className="pt0 mt0 silver f6">{route.join("/")}</h4>
 
-      <div className="mt4">
+      <div className="mt5">
         <Markdown
           mdast={mdast}
           route={route}
@@ -357,6 +392,7 @@ const App = () => {
           editingId={editingId}
           onCommit={mdast => {
             const stringified = stringifyMdast(mdast);
+            setMdast(parseMarkdown(stringified)); // to make sure parents and keys are properly updated
 
             socket.emit("update-content", {
               path: currentData.fullPath,
