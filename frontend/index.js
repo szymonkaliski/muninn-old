@@ -28,6 +28,64 @@ const getMarkdown = (data, route) => {
   }, data);
 };
 
+const stringifyMdast = mdast => {
+  return unified()
+    .use(stringify, { listItemIndent: 1, fences: true })
+    .use(remarkDue)
+    .stringify(mdast);
+};
+
+const parseMarkdown = text => {
+  const withIds = (parsed, currentKey) => {
+    if (parsed.children) {
+      parsed.children.forEach((child, i) => {
+        const newKey = currentKey ? `${currentKey}-${i}` : `${i}`;
+
+        child.id = newKey;
+        withIds(child, newKey);
+      });
+    }
+
+    return parsed;
+  };
+
+  const withParents = (parsed, parent) => {
+    if (parsed.children) {
+      parsed.children.forEach(child => {
+        child.parent = parent || parsed;
+        withParents(child, parent);
+      });
+    }
+
+    return parsed;
+  };
+
+  const withoutPositions = parsed => {
+    delete parsed.position;
+
+    if (parsed.children) {
+      parsed.children.forEach(child => {
+        withoutPositions(child);
+      });
+    }
+
+    return parsed;
+  };
+
+  const parsed = withoutPositions(
+    withParents(
+      withIds(
+        unified()
+          .use(markdown)
+          .use(remarkDue)
+          .parse(text)
+      )
+    )
+  );
+
+  return parsed;
+};
+
 const MarkdownHeading = ({ mdast, ...args }) => {
   const el = `h${mdast.depth}`;
 
@@ -52,7 +110,7 @@ const MarkdownList = ({ mdast, ...args }) => {
   });
 };
 
-const MarkdownListItem = ({ mdast, onUpdate, ...args }) => {
+const MarkdownListItem = ({ mdast, ...args }) => {
   const isTodo = mdast.checked !== null;
 
   return (
@@ -63,7 +121,7 @@ const MarkdownListItem = ({ mdast, onUpdate, ...args }) => {
           checked={mdast.checked}
           type="checkbox"
           onChange={() =>
-            onUpdate(mdast.id, { ...mdast, checked: !mdast.checked })
+            args.onUpdate(mdast.id, { ...mdast, checked: !mdast.checked })
           }
         />
       )}
@@ -79,16 +137,24 @@ const MarkdownListItem = ({ mdast, onUpdate, ...args }) => {
 const MarkdownParagraph = ({ mdast, ...args }) => {
   if (mdast.parent.type === "listItem") {
     return (
-      <>
+      <span
+        onClick={() => {
+          args.setEditingId(mdast.id);
+        }}
+      >
         {mdast.children.map(child => (
           <Markdown key={child.id} mdast={child} {...args} />
         ))}
-      </>
+      </span>
     );
   }
 
   return (
-    <p>
+    <p
+      onClick={() => {
+        args.setEditingId(mdast.id);
+      }}
+    >
       {mdast.children.map(child => (
         <Markdown key={child.id} mdast={child} {...args} />
       ))}
@@ -131,43 +197,88 @@ const MarkdownDue = ({ mdast }) => {
   );
 };
 
-const MarkdownCode = ({ mdast }) => {
+const MarkdownCode = ({ mdast, ...args }) => {
   const { lang, value: code } = mdast;
 
   const html = Prism.highlight(code, Prism.languages[lang], lang);
 
-  return <pre dangerouslySetInnerHTML={{ __html: html }} />;
+  return (
+    <pre
+      onClick={() => args.setEditingId(mdast.id)}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  );
 };
 
 const MarkdownImage = ({ mdast }) => {
   return <img src={mdast.url} alt={mdast.alt} />;
 };
 
+const MarkdownConcealEdit = ({ mdast, ...args }) => {
+  const [text, setText] = useState(null);
+
+  useEffect(() => {
+    if (!text) {
+      setText(stringifyMdast(mdast));
+    }
+  }, [text]);
+
+  if (!text) {
+    return null;
+  }
+
+  return (
+    <textarea
+      className="bw0 pa0 bg-near-white"
+      rows={text.split("\n").length}
+      value={text}
+      onChange={e => {
+        setText(e.target.value);
+      }}
+      onKeyDown={e => {
+        if (e.key === "Escape") {
+          // FIXME: multiple children returned... - will need to fix onUpdate!
+          const newMdast = parseMarkdown(text).children[0];
+
+          console.log({ newMdast, mdast })
+
+          args.onUpdate(mdast.id, newMdast);
+          args.setEditingId(null);
+        }
+      }}
+    />
+  );
+};
+
 const Markdown = ({ mdast, onCommit, ...args }) => {
-  if (mdast.type === "root") {
+  if (mdast.id === args.editingId) {
+    return <MarkdownConcealEdit key={mdast.id} mdast={mdast} {...args} />;
+  } else if (mdast.type === "root") {
     return (
       <>
-        {mdast.children.map(child => (
-          <Markdown
-            key={child.id}
-            mdast={child}
-            {...args}
-            onUpdate={(id, update) => {
-              const path = id.split("-").map(n => parseInt(n));
-              let tmpMdast = mdast.children;
+        {mdast.children.map(child => {
+          return (
+            <Markdown
+              key={child.id}
+              mdast={child}
+              {...args}
+              onUpdate={(id, update) => {
+                const path = id.split("-").map(n => parseInt(n));
+                let tmpMdast = mdast.children;
 
-              path.forEach((p, i) => {
-                if (i < path.length - 1) {
-                  tmpMdast = tmpMdast[p].children;
-                } else {
-                  tmpMdast[p] = update;
-                }
-              });
+                path.forEach((p, i) => {
+                  if (i < path.length - 1) {
+                    tmpMdast = tmpMdast[p].children;
+                  } else {
+                    tmpMdast[p] = update;
+                  }
+                });
 
-              onCommit(mdast);
-            }}
-          />
-        ))}
+                onCommit(mdast);
+              }}
+            />
+          );
+        })}
       </>
     );
   } else if (mdast.type) {
@@ -199,33 +310,13 @@ const Markdown = ({ mdast, onCommit, ...args }) => {
   }
 };
 
-const withIds = (parsed, currentKey) => {
-  if (parsed.children) {
-    parsed.children.forEach((child, i) => {
-      const newKey = currentKey ? `${currentKey}-${i}` : `${i}`;
-
-      child.id = newKey;
-      withIds(child, newKey);
-    });
-  }
-
-  return parsed;
-};
-
-const withParents = (parsed, parent) => {
-  if (parsed.children) {
-    parsed.children.forEach(child => {
-      child.parent = parent || parsed;
-      withParents(child, parent);
-    });
-  }
-
-  return parsed;
-};
-
 const App = () => {
   const [route, setRoute] = useRoute();
   const [data, setData] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [mdast, setMdast] = useState(null);
+
+  const currentData = data && route ? getMarkdown(data, route) : undefined;
 
   const socket = useSocket("data", data => {
     console.log("data from server", data);
@@ -238,23 +329,20 @@ const App = () => {
     }
   }, [data]);
 
-  const currentData = data && route ? getMarkdown(data, route) : undefined;
+  useEffect(() => {
+    if (currentData && currentData.content) {
+      setMdast(parseMarkdown(currentData.content));
+    } else {
+      setMdast(null);
+    }
+  }, [currentData]);
 
-  if (!currentData) {
+  if (!currentData || !mdast) {
     // TODO: automatic index?
     return null;
   }
 
-  const parsed = withParents(
-    withIds(
-      unified()
-        .use(markdown)
-        .use(remarkDue)
-        .parse(currentData.content)
-    )
-  );
-
-  console.log({ parsed });
+  console.log({ mdast });
 
   return (
     <div className="sans-serif w-80 center">
@@ -262,14 +350,13 @@ const App = () => {
 
       <div className="mt4">
         <Markdown
-          mdast={parsed}
+          mdast={mdast}
           route={route}
           setRoute={setRoute}
+          setEditingId={setEditingId}
+          editingId={editingId}
           onCommit={mdast => {
-            const stringified = unified()
-              .use(stringify, { listItemIndent: 1, fences: true })
-              .use(remarkDue)
-              .stringify(mdast);
+            const stringified = stringifyMdast(mdast);
 
             socket.emit("update-content", {
               path: currentData.fullPath,
