@@ -6,7 +6,7 @@ const glob = require("glob");
 const path = require("path");
 const yargs = require("yargs");
 const { sortBy, chain } = require("lodash");
-const { parse, format } = require("date-fns");
+const { parse, format, differenceInDays } = require("date-fns");
 
 const markdown = require("remark-parse");
 const stringify = require("remark-stringify");
@@ -14,7 +14,11 @@ const unified = require("unified");
 
 const remarkDue = require("./remark-plugins/due");
 
-const argv = yargs.options({ today: { alias: "t" } }).argv;
+const argv = yargs.options({
+  days: { alias: "d" },
+  overdue: { default: true },
+  "files-only": { defaul: false }
+}).argv;
 
 const stringifyMdast = mdast => {
   return unified()
@@ -129,10 +133,10 @@ overdue = sortBy(overdue, t => t.file);
 
 const todos = chain(todosByDate)
   .entries()
-  .sortBy(([date, _]) => dateToNum(date))
+  .sortBy(t => dateToNum(t[0]))
   .value();
 
-if (overdue.length > 0) {
+if (overdue.length > 0 && argv.overdue) {
   console.log(chalk.red("Overdue"));
 
   overdue.forEach(task => {
@@ -142,7 +146,21 @@ if (overdue.length > 0) {
   console.log();
 }
 
+const filesOnlyList = [];
+
 todos.forEach(([date, tasks]) => {
+  if (
+    argv.days !== undefined &&
+    differenceInDays(parse(date), today) > argv.days
+  ) {
+    return;
+  }
+
+  if (argv["files-only"]) {
+    tasks.forEach(t => filesOnlyList.push(t.file));
+    return;
+  }
+
   if (date === today) {
     console.log(chalk.green("Today"));
   } else {
@@ -161,3 +179,10 @@ todos.forEach(([date, tasks]) => {
 
   console.log();
 });
+
+if (argv["files-only"]) {
+  chain(filesOnlyList)
+    .uniq()
+    .forEach(f => console.log(f))
+    .value();
+}
