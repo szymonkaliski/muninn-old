@@ -77,9 +77,11 @@ const parseMarkdown = text => {
 
   return parsed;
 };
-const [dir] = argv._;
 
-const files = glob.sync("**/*.md", { cwd: path.join(__dirname, dir) });
+const [dir] = argv._;
+const cwd = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
+
+const files = glob.sync("**/*.md", { cwd });
 
 const traverse = (node, callback) => {
   callback(node);
@@ -89,7 +91,7 @@ const traverse = (node, callback) => {
   }
 };
 
-const dateToNum = date => parseInt(date.replace(/-/g, ""));
+const dateToNum = date => (date ? parseInt(date.replace(/-/g, "")) : 0);
 
 const today = format(Date.now(), "YYYY-MM-DD");
 const todayNum = dateToNum(today);
@@ -98,7 +100,7 @@ const todosByDate = {};
 let overdue = [];
 
 files.forEach(file => {
-  const fullPath = path.join(__dirname, dir, file);
+  const fullPath = path.join(cwd, file);
   const mdast = parseMarkdown(fs.readFileSync(fullPath));
 
   traverse(mdast, node => {

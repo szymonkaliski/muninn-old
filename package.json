@@ -7,6 +7,9 @@
   "scripts": {
     "dev": "nodemon -w index.js index.js"
   },
+  "bin": {
+    "muninn": "./cli.js"
+  },
   "dependencies": {
     "chalk": "^2.4.2",
     "chokidar": "^3.0.0",
