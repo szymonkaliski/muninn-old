@@ -1,18 +1,57 @@
 #!/usr/bin/env node
 
+const LRU = require("lru-cache");
 const chalk = require("chalk");
+const envPaths = require("env-paths");
 const fs = require("fs");
 const glob = require("glob");
+const md5 = require("md5");
+const mkdirp = require("mkdirp");
 const path = require("path");
 const yargs = require("yargs");
-const { sortBy, chain } = require("lodash");
 const { parse, format, differenceInDays } = require("date-fns");
+const { sortBy, chain, get } = require("lodash");
 
-const markdown = require("remark-parse");
-const stringify = require("remark-stringify");
-const unified = require("unified");
+const {
+  fastStringifyMdast,
+  parseMarkdown,
+  withParents,
+  withoutParents
+} = require("./markdown");
 
-const remarkDue = require("./remark-plugins/due");
+// cache
+
+const CACHE_PATH = envPaths("muninn").cache;
+const CACHE_FILE = path.join(CACHE_PATH, "cache.json");
+
+const cache = new LRU({
+  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+});
+
+if (!fs.existsSync(CACHE_PATH)) {
+  mkdirp(CACHE_PATH);
+}
+
+if (fs.existsSync(CACHE_FILE)) {
+  try {
+    const data = require(CACHE_FILE);
+    cache.load(data);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+const storeCache = () => {
+  const data = cache.dump().map(d => ({
+    ...d,
+    v: withoutParents(d.v)
+  }));
+
+  const json = JSON.stringify(data);
+  fs.writeFileSync(CACHE_FILE, json, { encoding: "utf-8" });
+};
+
+// args
 
 const argv = yargs.options({
   days: { alias: "d" },
@@ -20,68 +59,10 @@ const argv = yargs.options({
   "files-only": { defaul: false }
 }).argv;
 
-const stringifyMdast = mdast => {
-  return unified()
-    .use(stringify, { listItemIndent: 1, fences: true })
-    .use(remarkDue)
-    .stringify(mdast);
-};
-
-const parseMarkdown = text => {
-  const withIds = (parsed, currentKey) => {
-    if (parsed.children) {
-      parsed.children.forEach((child, i) => {
-        const newKey = currentKey ? `${currentKey}-${i}` : `${i}`;
-
-        child.id = newKey;
-        withIds(child, newKey);
-      });
-    }
-
-    return parsed;
-  };
-
-  const withParents = (parsed, parent) => {
-    if (parsed.children) {
-      parsed.children.forEach(child => {
-        child.parent = parent || parsed;
-        withParents(child, parent);
-      });
-    }
-
-    return parsed;
-  };
-
-  const withoutPositions = parsed => {
-    delete parsed.position;
-
-    if (parsed.children) {
-      parsed.children.forEach(child => {
-        withoutPositions(child);
-      });
-    }
-
-    return parsed;
-  };
-
-  const parsed = withoutPositions(
-    withParents(
-      withIds(
-        unified()
-          .use(markdown)
-          .use(remarkDue)
-          .parse(text)
-      )
-    )
-  );
-
-  return parsed;
-};
-
 const [dir] = argv._;
 const cwd = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
 
-const files = glob.sync("**/*.md", { cwd });
+// utils
 
 const traverse = (node, callback) => {
   callback(node);
@@ -93,98 +74,130 @@ const traverse = (node, callback) => {
 
 const dateToNum = date => (date ? parseInt(date.replace(/-/g, "")) : 0);
 
-const today = format(Date.now(), "YYYY-MM-DD");
-const todayNum = dateToNum(today);
+// consts
 
-const todosByDate = {};
-let overdue = [];
+const DATE_FORMAT = "yyyy-MM-dd";
+const TODAY = format(Date.now(), DATE_FORMAT);
+const TODAY_DATE = Date.now();
+const TODAY_NUM = dateToNum(TODAY);
 
-files.forEach(file => {
-  const fullPath = path.join(cwd, file);
-  const mdast = parseMarkdown(fs.readFileSync(fullPath));
+// main
 
-  traverse(mdast, node => {
-    if (node.type === "due") {
-      const isDone = node.parent.parent.checked === true;
-      const isInPast = dateToNum(node.date) < todayNum;
-      const isOverdue = !isDone && isInPast;
+const todosFromFiles = files => {
+  const todosByDate = { overdue: [] };
 
-      const todo = {
-        date: parse(node.date),
-        done: isDone,
-        due: node.date,
-        file,
-        fullPath,
-        text: stringifyMdast(node.parent)
-      };
+  files.forEach(file => {
+    const fullPath = path.join(cwd, file);
+    const content = fs.readFileSync(fullPath);
+    const hash = md5(content);
 
-      if (isOverdue) {
-        overdue.push(todo);
-      } else if (!isInPast) {
-        if (!todosByDate[node.date]) {
-          todosByDate[node.date] = [];
-        }
+    let mdast = cache.get(hash);
 
-        todosByDate[node.date].push(todo);
-      }
+    if (!mdast) {
+      mdast = parseMarkdown(content);
+      cache.set(hash, mdast);
     }
+
+    traverse(withParents(mdast), node => {
+      if (node.type === "due") {
+        const isDone = get(node, "parent.parent.checked", false);
+        const isInPast = dateToNum(node.date) < TODAY_NUM;
+        const isOverdue = !isDone && isInPast;
+        const text = fastStringifyMdast(node.parent);
+
+        const todo = {
+          date: parse(node.date, DATE_FORMAT, Date.now()),
+          due: node.date,
+          file,
+          fullPath,
+          isDone: isDone,
+          text
+        };
+
+        if (isOverdue) {
+          todosByDate.overdue.push(todo);
+        } else if (!isInPast) {
+          if (!todosByDate[node.date]) {
+            todosByDate[node.date] = [];
+          }
+
+          todosByDate[node.date].push(todo);
+        }
+      }
+    });
   });
-});
 
-overdue = sortBy(overdue, t => t.file);
+  todosByDate.overdue = sortBy(todosByDate.overdue, t => t.file);
 
-const todos = chain(todosByDate)
-  .entries()
-  .sortBy(t => dateToNum(t[0]))
-  .value();
+  return todosByDate;
+};
 
-if (overdue.length > 0 && argv.overdue) {
-  console.log(chalk.red("Overdue"));
+const run = () => {
+  const files = glob.sync("**/*.md", { cwd });
 
-  overdue.forEach(task => {
-    console.log(`- ${chalk.blue(task.file)}: ${task.text}`);
-  });
+  const todosByDate = todosFromFiles(files);
+  const { overdue } = todosByDate;
 
-  console.log();
-}
+  const todos = chain(todosByDate)
+    .omit(["overdue"])
+    .entries()
+    .sortBy(t => dateToNum(t[0]))
+    .value();
 
-const filesOnlyList = [];
+  if (overdue.length > 0 && argv.overdue) {
+    console.log(chalk.red("Overdue"));
 
-todos.forEach(([date, tasks]) => {
-  if (
-    argv.days !== undefined &&
-    differenceInDays(parse(date), today) > argv.days
-  ) {
-    return;
+    overdue.forEach(task => {
+      console.log(`- ${chalk.blue(task.file)}: ${task.text}`);
+    });
+
+    console.log();
   }
+
+  const filesOnlyList = [];
+
+  todos.forEach(([date, tasks]) => {
+    if (
+      argv.days !== undefined &&
+      differenceInDays(parse(date, DATE_FORMAT, Date.now()), TODAY_DATE) >
+        argv.days
+    ) {
+      return;
+    }
+
+    if (argv["files-only"]) {
+      tasks.forEach(t => filesOnlyList.push(t.file));
+      return;
+    }
+
+    if (date === TODAY) {
+      console.log(chalk.green("Today"));
+    } else {
+      console.log(
+        `${chalk.green(date)} ${chalk.grey(
+          format(parse(date, DATE_FORMAT, Date.now()), "EEEE")
+        )}`
+      );
+    }
+
+    tasks.forEach(task => {
+      if (task.isDone) {
+        console.log(chalk.gray(`- ${task.file}: ${task.text}`));
+      } else {
+        console.log(`- ${chalk.blue(task.file)}: ${task.text}`);
+      }
+    });
+
+    console.log();
+  });
 
   if (argv["files-only"]) {
-    tasks.forEach(t => filesOnlyList.push(t.file));
-    return;
+    chain(filesOnlyList)
+      .uniq()
+      .forEach(f => console.log(f))
+      .value();
   }
+};
 
-  if (date === today) {
-    console.log(chalk.green("Today"));
-  } else {
-    console.log(
-      `${chalk.green(date)} ${chalk.grey(format(parse(date), "dddd"))}`
-    );
-  }
-
-  tasks.forEach(task => {
-    if (task.done) {
-      console.log(chalk.gray(`- ${task.file}: ${task.text}`));
-    } else {
-      console.log(`- ${chalk.blue(task.file)}: ${task.text}`);
-    }
-  });
-
-  console.log();
-});
-
-if (argv["files-only"]) {
-  chain(filesOnlyList)
-    .uniq()
-    .forEach(f => console.log(f))
-    .value();
-}
+run();
+storeCache();

@@ -1,10 +1,5 @@
-// const { format } = require("date-fns");
-
 function tokenizeDates(eat, value, silent) {
-  const matchDue = /^@due\((.*)\)/.exec(value);
-  const matchToday = /^@today/.exec(value);
-
-  const match = matchDue || matchToday;
+  const match = /^@due\((.*)\)/.exec(value);
 
   if (match) {
     if (silent) {
@@ -13,7 +8,7 @@ function tokenizeDates(eat, value, silent) {
 
     return eat(match[0])({
       type: "due",
-      value,
+      value: match[0],
       date: match[1],
       children: [{ type: "text", value: match[0] }]
     });
@@ -31,12 +26,6 @@ function remarkDates() {
   if (this.Compiler) {
     const Compiler = this.Compiler;
     const visitors = Compiler.prototype.visitors;
-
-    // // process today
-    // visitors.due = node => {
-    //   const today = format(Date.now(), "YYYY-MM-DD");
-    //   return node.date === today ? "@today" : node.value;
-    // };
 
     visitors.due = node => node.value;
   }
