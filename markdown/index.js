@@ -61,7 +61,18 @@ const stringifyMdast = mdast => {
 const fastStringifyMdast = mdast => {
   return mdast.children
     .filter(({ value = "" }) => !value.startsWith("\n"))
-    .map(({ value, type }) => (type === "inlinceCode" ? `\`${value}\`` : value))
+    .map(({ value, type, ...rest }) => {
+      switch (type) {
+        case "inlinceCode":
+          return `\`${value}\``;
+
+        case "link":
+          return fastStringifyMdast({ children: rest.children });
+
+        default:
+          return value;
+      }
+    })
     .join("");
 };
 
