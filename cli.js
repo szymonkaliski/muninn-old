@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const path = require("path");
 const yargs = require("yargs");
 
 const createCache = require("./utils/cache");
@@ -21,8 +22,9 @@ const args = yargs
   .help().argv;
 
 const [TYPE] = args._;
+const dir = path.resolve(args.dir);
 
-const { files, tfidf, storeCache } = createCache(args.dir);
+const { files, tfidf, storeCache } = createCache(dir);
 
 if (TYPE === "tasks") {
   tasks({
@@ -34,7 +36,7 @@ if (TYPE === "tasks") {
 } else if (TYPE === "related") {
   related({
     tfidf,
-    file: args.file.replace(args.dir, "")
+    file: args.file.replace(`${dir}/`, "")
   });
 }
 

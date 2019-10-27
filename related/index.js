@@ -10,13 +10,14 @@ module.exports = ({ tfidf, ...options }) => {
     .map(({ term }) => term)
     .slice(0, 5); // FIXME: arbitrary?
 
-  // TODO: debug
+  // TODO: debug print
   // console.log(terms)
 
   let matching = [];
 
   tfidf.tfidfs(terms, (_, measure, key) => {
     if (measure > 0) {
+      // TODO: find on which terms matched
       matching.push({ file: key, measure });
     }
   });
@@ -26,5 +27,6 @@ module.exports = ({ tfidf, ...options }) => {
     .map(({ file }) => file)
     .value();
 
+  // log on which terms matched
   console.log(matching.join("\n"));
 };
