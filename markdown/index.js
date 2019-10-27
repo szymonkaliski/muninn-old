@@ -1,5 +1,6 @@
 const markdown = require("remark-parse");
 const stringify = require("remark-stringify");
+const strip = require("strip-markdown");
 const unified = require("unified");
 
 const remarkDue = require("./remark-due");
@@ -58,6 +59,14 @@ const stringifyMdast = mdast => {
     .stringify(mdast);
 };
 
+const stringifyMdastToPlainText = mdast => {
+  return unified()
+    .use(stringify, { listItemIndent: 1, fences: true })
+    .use(remarkDue)
+    .use(strip)
+    .stringify(mdast);
+};
+
 const fastStringifyMdast = mdast => {
   return mdast.children
     .filter(({ value = "" }) => !value.startsWith("\n"))
@@ -88,9 +97,11 @@ const parseMarkdown = text => {
 };
 
 module.exports = {
-  stringifyMdast,
   parseMarkdown,
   withParents,
   withoutParents,
+
+  stringifyMdast,
+  stringifyMdastToPlainText,
   fastStringifyMdast
 };

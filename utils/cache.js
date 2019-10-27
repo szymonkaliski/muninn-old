@@ -4,15 +4,31 @@ const fs = require("fs");
 const glob = require("glob");
 const md5 = require("md5");
 const path = require("path");
+const stopwords = require("stopwords-json/dist/en.json");
+const { TfIdf } = require("natural");
 
-const { parseMarkdown, withoutParents } = require("../markdown");
+const {
+  parseMarkdown,
+  withoutParents,
+  stringifyMdastToPlainText
+} = require("../markdown");
 
 const CACHE_PATH = envPaths("muninn").cache;
 const CACHE_FILE = path.join(CACHE_PATH, "cache.json");
 
-module.exports = dir => {
-  dir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
+const STOPWORDS = [
+  ...stopwords,
+  "code",
+  "commit",
+  "data",
+  "http",
+  "https",
+  "image",
+  "user",
+  "video"
+];
 
+const createCache = () => {
   const cache = new LRU({
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   });
@@ -21,24 +37,41 @@ module.exports = dir => {
     mkdirp(CACHE_PATH);
   }
 
+  let cachedData;
+
   if (fs.existsSync(CACHE_FILE)) {
     try {
-      const data = require(CACHE_FILE);
-      cache.load(data);
+      cachedData = require(CACHE_FILE);
     } catch (e) {
       console.error(e);
     }
   }
 
+  if (cachedData) {
+    cache.load(cachedData.cache);
+  }
+
+  const tfidf = cachedData ? new TfIdf(cachedData.tfidf) : new TfIdf();
+  tfidf.setStopwords(STOPWORDS);
+
   const storeCache = () => {
-    const data = cache.dump().map(d => ({
+    const cacheData = cache.dump().map(d => ({
       ...d,
       v: withoutParents(d.v)
     }));
 
-    const json = JSON.stringify(data);
+    const json = JSON.stringify({ cache: cacheData, tfidf });
+
     fs.writeFileSync(CACHE_FILE, json, { encoding: "utf-8" });
   };
+
+  return { tfidf, cache, storeCache };
+};
+
+module.exports = dir => {
+  const { tfidf, cache, storeCache } = createCache();
+
+  dir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
 
   const parseFiles = dir => {
     const files = glob.sync("**/*.md", { cwd: dir });
@@ -52,6 +85,8 @@ module.exports = dir => {
 
       if (!mdast) {
         mdast = parseMarkdown(content);
+        tfidf.addDocument(stringifyMdastToPlainText(mdast), file);
+
         cache.set(hash, mdast);
       }
 
@@ -63,6 +98,7 @@ module.exports = dir => {
 
   return {
     files: parsed,
+    tfidf,
     storeCache
   };
 };

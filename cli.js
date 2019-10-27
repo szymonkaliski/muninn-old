@@ -4,13 +4,15 @@ const yargs = require("yargs");
 
 const createCache = require("./utils/cache");
 const tasks = require("./tasks");
+const related = require("./related");
 
 const args = yargs
-  .command("tasks [directory]", "find all tasks in given directory", {
+  .command("tasks", "find all tasks in given directory", {
     days: { default: undefined },
     overdue: { default: true },
     "files-with-matches": { default: false }
   })
+  .command("related [file]", "find all notes related to given file")
   .option("dir", {
     alias: "d",
     demandOption: true
@@ -20,7 +22,7 @@ const args = yargs
 
 const [TYPE] = args._;
 
-const { files, storeCache } = createCache(args.dir);
+const { files, tfidf, storeCache } = createCache(args.dir);
 
 if (TYPE === "tasks") {
   tasks({
@@ -28,6 +30,11 @@ if (TYPE === "tasks") {
     overdue: args.overdue,
     days: args.days,
     filesWithMatches: args["files-with-matches"]
+  });
+} else if (TYPE === "related") {
+  related({
+    tfidf,
+    file: args.file.replace(args.dir, "")
   });
 }
 
