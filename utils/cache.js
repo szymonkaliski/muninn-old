@@ -17,15 +17,22 @@ const CACHE_PATH = envPaths("muninn").cache;
 const CACHE_FILE = path.join(CACHE_PATH, "cache.json");
 
 const STOPWORDS = [
-  ...stopwords,
   "code",
   "commit",
   "data",
+  "editing",
+  "enter",
+  "function",
   "http",
   "https",
   "image",
+  "live",
+  "long",
+  "show",
+  "typing",
   "user",
-  "video"
+  "video",
+  ...stopwords
 ];
 
 const createCache = () => {
@@ -51,8 +58,15 @@ const createCache = () => {
     cache.load(cachedData.cache);
   }
 
-  const tfidf = cachedData ? new TfIdf(cachedData.tfidf) : new TfIdf();
-  tfidf.setStopwords(STOPWORDS);
+  let tfidf;
+
+  if (cachedData) {
+    tfidf = new TfIdf(cachedData.tfidf);
+  } else {
+    tfidf = new TfIdf();
+    // stopwords only make a difference with parsing, to update them the cache has to be pruned
+    tfidf.setStopwords(STOPWORDS);
+  }
 
   const storeCache = () => {
     const cacheData = cache.dump().map(d => ({
