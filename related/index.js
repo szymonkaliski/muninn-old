@@ -7,32 +7,35 @@ module.exports = ({ tfidf, ...options }) => {
 
   const searchTerms = termsForFile(options.file)
     .filter(term => term.length > 3)
-    .filter(term => isNaN(term))
-    .slice(0, 20);
+    .filter(term => isNaN(term));
 
-  let matching = [];
+  let matching = {};
 
   tfidf.tfidfs(searchTerms, (_, measure, key) => {
     if (measure > 0) {
       const terms = termsForFile(key);
       const matchingTerms = intersection(terms, searchTerms);
 
-      matching.push({
-        file: key,
-        measure,
-        terms,
-        matchingTerms
-      });
+      if (!matching[key]) {
+        matching[key] = {
+          file: key,
+          measure,
+          matchingTerms
+        };
+      } else {
+        matching[key].measure = Math.max(matching[key].measure, measure);
+      }
     }
   });
 
   chain(matching)
+    .values()
+    .filter(({ file }) => file !== options.file)
     .uniqBy(({ file }) => file)
     .sortBy([
-      ({ measure }) => measure,
-      ({ matchingTerms }) => matchingTerms.length
+      ({ matchingTerms }) => matchingTerms.length,
+      ({ measure }) => measure
     ])
-    .filter(({ file }) => file !== options.file)
     .reverse()
     .forEach(({ file, matchingTerms }) => {
       console.log(`${file}: ${matchingTerms.join(", ")}`);

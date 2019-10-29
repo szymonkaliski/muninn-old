@@ -14,6 +14,7 @@ const args = yargs
     "files-with-matches": { default: false }
   })
   .command("related [file]", "find all notes related to given file")
+  .command("clear-cache", "clear cache, will be rebuilt on next command")
   .option("dir", {
     alias: "d",
     demandOption: true
@@ -24,20 +25,28 @@ const args = yargs
 const [TYPE] = args._;
 const dir = path.resolve(args.dir);
 
-const { files, tfidf, storeCache } = createCache(dir);
+const cache = createCache(dir);
 
 if (TYPE === "tasks") {
+  cache.parse();
+
   tasks({
-    files,
+    files: cache.getFiles(),
     overdue: args.overdue,
     days: args.days,
     filesWithMatches: args["files-with-matches"]
   });
+
+  cache.store();
 } else if (TYPE === "related") {
+  cache.parse();
+
   related({
-    tfidf,
+    tfidf: cache.getTfidf(),
     file: args.file.replace(`${dir}/`, "")
   });
-}
 
-storeCache();
+  cache.store();
+} else if (TYPE === "clear-cache") {
+  cache.clear();
+}

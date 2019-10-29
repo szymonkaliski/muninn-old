@@ -68,7 +68,7 @@ const createCache = () => {
     tfidf.setStopwords(STOPWORDS);
   }
 
-  const storeCache = () => {
+  const store = () => {
     const cacheData = cache.dump().map(d => ({
       ...d,
       v: withoutParents(d.v)
@@ -79,11 +79,17 @@ const createCache = () => {
     fs.writeFileSync(CACHE_FILE, json, { encoding: "utf-8" });
   };
 
-  return { tfidf, cache, storeCache };
+  const clear = () => {
+    if (fs.existsSync(CACHE_FILE)) {
+      fs.unlinkSync(CACHE_FILE);
+    }
+  };
+
+  return { tfidf, cache, store, clear };
 };
 
 module.exports = dir => {
-  const { tfidf, cache, storeCache } = createCache();
+  const { tfidf, cache, store, clear } = createCache();
 
   dir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
 
@@ -108,11 +114,18 @@ module.exports = dir => {
     }, {});
   };
 
-  const parsed = parseFiles(dir);
+  let files = {};
+
+  const parse = () => {
+    files = parseFiles(dir);
+  };
 
   return {
-    files: parsed,
-    tfidf,
-    storeCache
+    parse,
+    store,
+    clear,
+
+    getFiles: () => files, // not sure why just putting `files: files` here doesn't work
+    getTfidf: () => tfidf,
   };
 };
