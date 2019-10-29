@@ -23,7 +23,6 @@ module.exports = options => {
     fs.renameSync(tempName, path.join(assetDir, finalName));
 
     console.log(`![](.assets/${finalName})
-[source](${options.url})
-    `);
+[(source)](${options.url})`);
   });
 };
