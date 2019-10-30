@@ -10,19 +10,30 @@ module.exports = options => {
 
   mkdirp.sync(assetDir);
 
-  const tempName = path.join(assetDir, "download.temp");
+  const shouldDownload = options.url.startsWith("http");
 
-  wget({ url: options.url, dest: tempName }, (error, result, body) => {
-    if (error) {
-      console.log(error);
-      process.exit(1);
-    }
+  if (shouldDownload) {
+    const tempName = path.join(assetDir, "download.temp");
 
-    const hash = md5(body);
-    const finalName = `${hash}${ext}`;
-    fs.renameSync(tempName, path.join(assetDir, finalName));
+    wget({ url: options.url, dest: tempName }, (error, result, body) => {
+      if (error) {
+        console.log(error);
+        process.exit(1);
+      }
 
-    console.log(`![](.assets/${finalName})
+      const hash = md5(body);
+      const finalName = `${hash}${ext}`;
+      fs.renameSync(tempName, path.join(assetDir, finalName));
+
+      console.log(`![](.assets/${finalName})
 [(source)](${options.url})`);
-  });
+    });
+  } else {
+    const hash = md5(fs.readFileSync(options.url));
+    const finalName = `${hash}${ext}`;
+
+    fs.copyFileSync(options.url, path.join(assetDir, finalName));
+
+    console.log(`![](.assets/${finalName})`);
+  }
 };
