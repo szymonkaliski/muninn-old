@@ -12,7 +12,7 @@ const args = yargs
   .command("tasks", "find all tasks in given directory", {
     days: { default: undefined },
     overdue: { default: true },
-    "files-with-matches": { default: false }
+    "files-with-matches": {}
   })
   .command("related", "find all notes related to given file", yargs => {
     yargs.option("file", {
