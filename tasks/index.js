@@ -1,5 +1,5 @@
 const chalk = require("chalk");
-const { parse, format, differenceInDays } = require("date-fns");
+const { parse, format, differenceInHours } = require("date-fns");
 const { sortBy, chain, get } = require("lodash");
 
 const { fastStringifyMdast, withParents } = require("../markdown");
@@ -81,8 +81,8 @@ module.exports = options => {
   todos.forEach(([date, tasks]) => {
     if (
       options.days !== undefined &&
-      differenceInDays(parse(date, DATE_FORMAT, Date.now()), TODAY_DATE) >
-        options.days
+      differenceInHours(parse(date, DATE_FORMAT, Date.now()), TODAY_DATE) >
+        Math.max(options.days - 1, 0) * 24
     ) {
       return;
     }
