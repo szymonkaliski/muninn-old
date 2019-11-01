@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC -//Apple Computer//DTD PLIST 1.0//EN http://www.apple.com/DTDs/PropertyList-1.0.dtd>
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.szymonkaliski.muninn-watch</string>
+    <key>Program</key>
+    <string>/Users/szymon/Documents/Projects/muninn/scripts/muninn-commit.sh</string>
+    <key>WatchPaths</key>
+    <array>
+        <string>/Users/Szymon/Documents/Dropbox/Wiki/</string>
+    </array>
+    <key>ThrottleInterval</key>
+    <integer>3600</integer> 
+</dict>
+</plist>
