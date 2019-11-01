@@ -7,6 +7,7 @@ const createCache = require("./utils/cache");
 const tasks = require("./tasks");
 const related = require("./related");
 const getAsset = require("./get-asset");
+const serveUI = require("./ui");
 
 const args = yargs
   .command("tasks", "find all tasks in given directory", {
@@ -32,6 +33,9 @@ const args = yargs
         });
     }
   )
+  .command("ui", "start web based ui", yargs => {
+    yargs.option("port", { default: 8080 });
+  })
   .command("clear-cache", "clear cache, will be rebuilt on next command")
   .option("dir", {
     alias: "d",
@@ -41,9 +45,8 @@ const args = yargs
   .help().argv;
 
 const [TYPE] = args._;
-const dir = path.resolve(args.dir);
 
-const cache = createCache(dir);
+const cache = createCache(args.dir);
 
 const COMMANDS = {
   tasks: () => {
@@ -64,14 +67,23 @@ const COMMANDS = {
 
     related({
       tfidf: cache.getTfidf(),
-      file: args.file.replace(`${dir}/`, "")
+      file: args.file.replace(args.dir, "")
     });
 
     cache.store();
   },
 
+  ui: () => {
+    serveUI({
+      cache,
+      dir: args.dir,
+      port: args.port
+    });
+  },
+
   "get-asset": () => {
     getAsset({
+      dir: args.dir,
       file: args.file,
       url: args.url
     });

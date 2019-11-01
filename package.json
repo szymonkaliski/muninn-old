@@ -11,9 +11,12 @@
     "muninn": "./cli.js"
   },
   "dependencies": {
+    "body-parser": "^1.19.0",
     "chalk": "^2.4.2",
+    "chokidar": "^3.2.3",
     "date-fns": "^2.6.0",
     "env-paths": "^2.2.0",
+    "express": "^4.17.1",
     "glob": "^7.1.5",
     "lodash": "^4.17.15",
     "lru-cache": "^5.1.1",
@@ -21,11 +24,19 @@
     "mkdirp": "^0.5.1",
     "natural": "^0.6.3",
     "node-wget": "^0.4.3",
+    "parcel-bundler": "^1.12.4",
+    "react": "^16.11.0",
+    "react-dom": "^16.11.0",
     "remark-parse": "^7.0.1",
+    "remark-react": "^6.0.0",
     "remark-stringify": "^7.0.3",
+    "socket.io": "^2.3.0",
+    "socket.io-client": "^2.3.0",
     "stopwords-json": "^1.2.0",
     "strip-markdown": "^3.1.1",
+    "tachyons": "^4.11.1",
     "unified": "^8.4.1",
+    "use-socketio": "^1.0.1",
     "yargs": "^14.2.0"
   },
   "devDependencies": {

@@ -91,8 +91,6 @@ const createCache = () => {
 module.exports = dir => {
   const { tfidf, cache, store, clear } = createCache();
 
-  dir = path.isAbsolute(dir) ? dir : path.join(process.cwd(), dir);
-
   const parseFiles = dir => {
     const files = glob.sync("**/*.md", { cwd: dir });
 
@@ -126,6 +124,6 @@ module.exports = dir => {
     clear,
 
     getFiles: () => files, // not sure why just putting `files: files` here doesn't work
-    getTfidf: () => tfidf,
+    getTfidf: () => tfidf
   };
 };
