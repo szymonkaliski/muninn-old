@@ -1,75 +1,69 @@
-// const io = require("socket.io-client");
 const React = require("react");
 const ReactDOM = require("react-dom");
 const { ClientSocket, useSocket } = require("use-socketio");
 const { last } = require("lodash");
-const path = require("path");
 
-const remarkToReact = require("remark-react");
-const unified = require("unified");
-
-const remarkDue = require("../../markdown/remark-due");
-
+const Markdown = require("./render-markdown");
 const useRoute = require("./use-route");
-const { useState } = React;
+const { withParents } = require("../../markdown");
 
 require("tachyons");
 
-const MarkdownLink = ({ href, children, context }) => {
-  const isLocal = !href.startsWith("http");
+const { useState } = React;
 
-  const url = isLocal
-    ? `/#/${path.join(context.route.slice(0, -1).join("/"), href)}`
-    : href;
-
+const RouteNavigation = ({ route }) => {
   return (
-    <a
-      href={url}
-      target={!isLocal ? "_blank" : ""}
-      onClick={e => {
-        e.stopPropagation();
-      }}
-    >
-      {children}
-    </a>
+    <div className="mt2 f5 mb5">
+      <a className="gray no-underline underline-hover" href="/#/">
+        Wiki
+      </a>
+      <span className="dib mh1">/</span>
+
+      {route.map((name, i) => (
+        <span key={i}>
+          <a
+            className="gray no-underline underline-hover"
+            href={"/#/" + route.slice(0, i + 1).join("/")}
+          >
+            {name}
+          </a>
+          {i < route.length - 1 && <span className="dib mh1">/</span>}
+        </span>
+      ))}
+    </div>
   );
 };
 
-const MarkdownImage = ({ src, alt, context }) => {
-  const isLocal = !src.startsWith("http");
+const Directory = ({ route, files }) => {
+  return (
+    <div>
+      <h1>{last(route)}</h1>
 
-  console.log({ src, alt, context, isLocal });
-
-  const url = isLocal
-    ? "/asset/?path=" +
-      path.join(context.dir, ...context.route.slice(0, -1), src)
-    : src;
-
-  return <img src={url} alt={alt} />;
+      <ol className="list pl0 lh-copy">
+        {files.map(file => (
+          <li key={file}>
+            <a
+              className="blue no-underline underline-hover"
+              href={"/#/" + file}
+            >
+              {file.replace(route.join("/") + "/", "")}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 };
-
-const mdastToReact = ({ mdast }, context) =>
-  unified()
-    .use(remarkDue)
-    .use(remarkToReact, {
-      remarkReactComponents: {
-        a: args => <MarkdownLink context={context} {...args} />,
-        img: args => <MarkdownImage context={context} {...args} />
-      }
-    })
-    .stringify(mdast);
 
 const App = () => {
   const [route, _] = useRoute();
-  const [files, setFiles] = useState(null);
-  const [dir, setDir] = useState(null);
+  const [data, setData] = useState(null);
 
-  useSocket("files", ({ files, dir }) => {
-    setFiles(files);
-    setDir(dir);
+  useSocket("data", data => {
+    setData(data);
   });
 
-  if (!files || !dir) {
+  if (!data) {
     return null;
   }
 
@@ -78,11 +72,28 @@ const App = () => {
     : route
   ).join("/");
 
-  console.log({ finalRoute, files, route });
+  const { mdast } = data.files[finalRoute] || {};
 
-  const tree = mdastToReact(files[finalRoute], { route, dir });
+  const directoryFiles = Object.keys(data.files).filter(key =>
+    key.startsWith(route.join("/"))
+  );
 
-  return <div className="mw8 center sans-serif">{tree}</div>;
+  return (
+    <div className="mw8 center sans-serif ph4 pb4">
+      <RouteNavigation route={route} />
+
+      {mdast ? (
+        <Markdown
+          mdast={withParents(mdast)}
+          dir={data.dir}
+          route={route}
+          isEditable={false}
+        />
+      ) : (
+        <Directory files={directoryFiles} route={route} />
+      )}
+    </div>
+  );
 };
 
 ReactDOM.render(

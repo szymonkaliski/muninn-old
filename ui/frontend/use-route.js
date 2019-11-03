@@ -5,7 +5,8 @@ const parseHashURL = url =>
     .split("#/")
     .pop()
     .split("/")
-    .filter(item => item.length > 0);
+    .filter(item => item.length > 0)
+    .map(item => decodeURI(item));
 
 module.exports = () => {
   const [route, setRoute] = useState(parseHashURL(location));

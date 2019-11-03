@@ -29,7 +29,7 @@ module.exports = options => {
   // update io clients on file changes
   const updateIO = debounce(() => {
     cache.parse();
-    io.emit("files", { dir, files: cache.getFiles() });
+    io.emit("data", { dir, files: cache.getFiles() });
   }, DEBOUNCE_TIME);
 
   chokidar.watch(dir, { ignored: /\.git.*/ }).on("all", () => {
@@ -38,7 +38,7 @@ module.exports = options => {
 
   // update io clients when connecting
   io.on("connection", socket => {
-    socket.emit("files", { dir, files: cache.getFiles() });
+    socket.emit("data", { dir, files: cache.getFiles() });
   });
 
   // start
