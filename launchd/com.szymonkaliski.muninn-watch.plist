@@ -11,6 +11,6 @@
         <string>/Users/Szymon/Documents/Dropbox/Wiki/</string>
     </array>
     <key>ThrottleInterval</key>
-    <integer>600</integer>
+    <integer>3600</integer>
 </dict>
 </plist>

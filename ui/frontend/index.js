@@ -1,7 +1,8 @@
+const path = require("path");
 const React = require("react");
 const ReactDOM = require("react-dom");
 const { ClientSocket, useSocket } = require("use-socketio");
-const { last } = require("lodash");
+const { last, chain } = require("lodash");
 
 const Markdown = require("./render-markdown");
 const useRoute = require("./use-route");
@@ -35,18 +36,27 @@ const RouteNavigation = ({ route }) => {
 };
 
 const Directory = ({ route, files }) => {
+  const dirsAndFiles = chain(files)
+    .map(file =>
+      route.length ? file.replace(route.join("/") + "/", "") : file
+    )
+    .map(name => (name.includes("/") ? name.split("/")[0] + "/" : name))
+    .uniqBy(name => name)
+    .orderBy([name => name.endsWith("/")], ["desc"])
+    .value();
+
   return (
     <div>
-      <h1>{last(route)}</h1>
+      <h1>{last(route) || "Wiki"}</h1>
 
       <ol className="list pl0 lh-copy">
-        {files.map(file => (
-          <li key={file}>
+        {dirsAndFiles.map(name => (
+          <li key={name}>
             <a
               className="blue no-underline underline-hover"
-              href={"/#/" + file}
+              href={"/#/" + path.join(...route, name)}
             >
-              {file.replace(route.join("/") + "/", "")}
+              {name}
             </a>
           </li>
         ))}
@@ -67,12 +77,7 @@ const App = () => {
     return null;
   }
 
-  const finalRoute = (!(last(route) || "").endsWith(".md")
-    ? [...route, "index.md"]
-    : route
-  ).join("/");
-
-  const { mdast } = data.files[finalRoute] || {};
+  const { mdast } = data.files[route.join("/")] || {};
 
   const directoryFiles = Object.keys(data.files).filter(key =>
     key.startsWith(route.join("/"))
