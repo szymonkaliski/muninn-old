@@ -23,7 +23,11 @@ module.exports = options => {
   });
 
   // bundle frontend
-  const bundler = new Bundler(path.join(__dirname, "frontend/*.html"));
+  const bundler = new Bundler(path.join(__dirname, "frontend/*.html"), {
+    outDir: path.join(__dirname, "dist"),
+    cacheDir: path.join(__dirname, ".cache")
+  });
+
   app.use(bundler.middleware());
 
   // update io clients on file changes

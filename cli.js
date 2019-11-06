@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 
-const path = require("path");
 const yargs = require("yargs");
 
 const createCache = require("./utils/cache");
-const tasks = require("./tasks");
-const related = require("./related");
 const getAsset = require("./get-asset");
+const related = require("./related");
 const serveUI = require("./ui");
+const tasks = require("./tasks");
 
 const args = yargs
   .command("tasks", "find all tasks in given directory", {
