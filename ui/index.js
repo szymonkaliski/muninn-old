@@ -1,4 +1,3 @@
-const Bundler = require("parcel-bundler");
 const bodyParser = require("body-parser");
 const chokidar = require("chokidar");
 const createIO = require("socket.io");
@@ -8,6 +7,7 @@ const { createServer } = require("http");
 const { debounce } = require("lodash");
 
 const DEBOUNCE_TIME = 10;
+const IS_DEV = process.env.NODE_ENV === "development";
 
 module.exports = options => {
   const { dir, cache, port } = options;
@@ -22,13 +22,19 @@ module.exports = options => {
     res.sendFile(req.query.path);
   });
 
-  // bundle frontend
-  const bundler = new Bundler(path.join(__dirname, "frontend/*.html"), {
-    outDir: path.join(__dirname, "dist"),
-    cacheDir: path.join(__dirname, ".cache")
-  });
+  // frontend bundle
+  if (IS_DEV) {
+    const Bundler = require("parcel-bundler");
 
-  app.use(bundler.middleware());
+    const bundler = new Bundler(path.join(__dirname, "frontend/*.html"), {
+      outDir: path.join(__dirname, "dist"),
+      cacheDir: path.join(__dirname, ".cache")
+    });
+
+    app.use(bundler.middleware());
+  } else {
+    app.use(express.static(path.join(__dirname, "dist")));
+  }
 
   // update io clients on file changes
   const updateIO = debounce(() => {
@@ -47,6 +53,6 @@ module.exports = options => {
 
   // start
   server.listen(port, () => {
-    console.log(`Running on http://localhost:${port}`);
+    console.log(`muninn ui running on http://localhost:${port}`);
   });
 };

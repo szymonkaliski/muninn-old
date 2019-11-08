@@ -5,7 +5,7 @@
   "author": "Szymon Kaliski <hi@szymonkaliski.com> (http://szymonkaliski.com)",
   "license": "MIT",
   "scripts": {
-    "dev": "nodemon -w index.js index.js"
+    "build-ui": "parcel build --out-dir ui/dist --cache-dir ui/.cache --no-source-maps ui/frontend/index.html"
   },
   "bin": {
     "muninn": "./cli.js"
