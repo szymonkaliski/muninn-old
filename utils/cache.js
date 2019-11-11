@@ -1,3 +1,4 @@
+const mkdirp = require("mkdirp");
 const LRU = require("lru-cache");
 const envPaths = require("env-paths");
 const fs = require("fs");
@@ -7,11 +8,7 @@ const path = require("path");
 const stopwords = require("stopwords-json/dist/en.json");
 const { TfIdf } = require("natural");
 
-const {
-  parseMarkdown,
-  withoutParents,
-  stringifyMdastToPlainText
-} = require("../markdown");
+const { parseMarkdown, withoutParents, stringifyMdastToPlainText } = require("../markdown");
 
 const CACHE_PATH = envPaths("muninn").cache;
 const CACHE_FILE = path.join(CACHE_PATH, "cache.json");
