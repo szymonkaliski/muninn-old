@@ -46,7 +46,8 @@ const MarkdownBlockquote = ({ mdast, ...args }) => {
 
 const MarkdownList = ({ mdast, ...args }) => {
   const el = mdast.ordered ? "ol" : "ul";
-  const paddingLeft = get(mdast, ["parent", "type"]) !== "listItem" ? "pl0" : "pl4";
+  const paddingLeft =
+    get(mdast, ["parent", "type"]) !== "listItem" ? "pl0" : "pl4";
 
   return React.createElement(el, {
     className: `lh-copy list ${paddingLeft}`,
@@ -134,7 +135,9 @@ const MarkdownLink = ({ mdast, ...args }) => {
   const isLocal = mdast.url.startsWith("./");
 
   const url = isLocal
-    ? `/#/${path.join(routeDir(args.route).join("/"), mdast.url).replace(/\\/g, "")}`
+    ? `/#/${path
+        .join(routeDir(args.route).join("/"), mdast.url)
+        .replace(/\\/g, "")}`
     : mdast.url;
 
   return (
@@ -224,6 +227,54 @@ const MarkdownImage = ({ mdast, ...args }) => {
     : mdast.url;
 
   return <img src={url} alt={mdast.alt} />;
+};
+
+const MarkdownTable = ({ mdast, ...args }) => {
+  return (
+    <table className="w-100 pv2 f6" cellSpacing={0}>
+      <MarkdownTableHead mdast={mdast.children[0]} {...args} />
+
+      <tbody>
+        {mdast.children.slice(1).map(child => (
+          <Markdown key={child.id} mdast={child} {...args} />
+        ))}
+      </tbody>
+    </table>
+  );
+};
+
+const MarkdownTableHead = ({ mdast, ...args }) => {
+  return (
+    <thead>
+      <tr className="bg-white">
+        {mdast.children.map(child => (
+          <th className="fw6 pa2 bg-white" key={child.id}>
+            <Markdown mdast={child.children[0]} {...args} />
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+};
+
+const MarkdownTableRow = ({ mdast, ...args }) => {
+  return (
+    <tr className="stripe-dark">
+      {mdast.children.map(child => (
+        <Markdown key={child.id} mdast={child} {...args} />
+      ))}
+    </tr>
+  );
+};
+
+const MarkdownTableCell = ({ mdast, ...args }) => {
+  return (
+    <td className="pa2">
+      {mdast.children.map(child => (
+        <Markdown key={child.id} mdast={child} {...args} />
+      ))}
+    </td>
+  );
 };
 
 const MarkdownConcealEdit = ({ mdast, ...args }) => {
@@ -321,7 +372,10 @@ const Markdown = ({ mdast, onCommit, ...args }) => {
       due: MarkdownDue,
       emphasis: MarkdownEmphasis,
       strong: MarkdownStrong,
-      blockquote: MarkdownBlockquote
+      blockquote: MarkdownBlockquote,
+      table: MarkdownTable,
+      tableRow: MarkdownTableRow,
+      tableCell: MarkdownTableCell
     };
 
     if (types[mdast.type] === undefined) {
