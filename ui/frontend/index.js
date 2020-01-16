@@ -10,7 +10,7 @@ const { withParents } = require("../../markdown");
 
 require("tachyons");
 
-const { useState } = React;
+const { useState, useEffect } = React;
 
 const RouteNavigation = ({ route }) => {
   return (
@@ -69,9 +69,11 @@ const App = () => {
   const [route, _] = useRoute();
   const [data, setData] = useState(null);
 
-  useSocket("data", data => {
-    setData(data);
-  });
+  useSocket("data", data => setData(data));
+
+  useEffect(() => {
+    document.title = `${route.length > 0 ? route.join("/") : "/"} · muninn`;
+  }, [route]);
 
   if (!data) {
     return null;

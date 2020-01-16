@@ -16,6 +16,10 @@ const DATE_FORMAT = "yyyy-MM-dd";
 const routeDir = route =>
   (last(route) || "").endsWith(".md") ? route.slice(0, -1) : route;
 
+const MarkdownThematicBreak = () => (
+  <hr style={{ border: 0, height: 1 }} className="bg-gray" />
+);
+
 const MarkdownHeading = ({ mdast, ...args }) => {
   const el = `h${mdast.depth}`;
 
@@ -30,19 +34,23 @@ const MarkdownHeading = ({ mdast, ...args }) => {
   });
 };
 
-const MarkdownText = ({ mdast }) => {
-  return <span>{mdast.value}</span>;
-};
+const MarkdownText = ({ mdast }) => <span>{mdast.value}</span>;
 
-const MarkdownBlockquote = ({ mdast, ...args }) => {
-  return (
-    <blockquote className="serif ml0 mt0 pl2 bl bw2 b--light-gray">
-      {mdast.children.map(child => (
-        <Markdown key={child.id} mdast={child} {...args} />
-      ))}
-    </blockquote>
-  );
-};
+const MarkdownDelete = ({ mdast, ...args }) => (
+  <span className="strike">
+    {mdast.children.map(child => (
+      <Markdown key={child.id} mdast={child} {...args} />
+    ))}
+  </span>
+);
+
+const MarkdownBlockquote = ({ mdast, ...args }) => (
+  <blockquote className="serif ml0 mt0 pl2 bl bw2 b--light-gray">
+    {mdast.children.map(child => (
+      <Markdown key={child.id} mdast={child} {...args} />
+    ))}
+  </blockquote>
+);
 
 const MarkdownList = ({ mdast, ...args }) => {
   const el = mdast.ordered ? "ol" : "ul";
@@ -54,14 +62,16 @@ const MarkdownList = ({ mdast, ...args }) => {
     onClick: () => {
       args.isEditable && args.setEditingId(mdast.id);
     },
-    children: mdast.children.map(child => (
-      <Markdown key={child.id} mdast={child} {...args} />
+    children: mdast.children.map((child, i) => (
+      <Markdown key={child.id} mdast={child} idx={i} {...args} />
     ))
   });
 };
 
 const MarkdownListItem = ({ mdast, ...args }) => {
+  const isOrdered = mdast.parent.ordered;
   const isTodo = mdast.checked !== null;
+  const dash = isOrdered ? `${args.idx + 1}.` : "-";
 
   const [firstChild, ...restChildren] = mdast.children;
   const shouldIndentChildren = get(restChildren, [0, "type"]) !== "list";
@@ -85,7 +95,7 @@ const MarkdownListItem = ({ mdast, ...args }) => {
             }}
           />
         ) : (
-          <span className="gray ml1">-</span>
+          <span className={`gray ml1 ${isOrdered ? "f6" : ""}`}>{dash}</span>
         )}
       </div>
 
@@ -132,13 +142,15 @@ const MarkdownParagraph = ({ mdast, dontWrapParagraph, ...args }) => {
 };
 
 const MarkdownLink = ({ mdast, ...args }) => {
-  const isLocal = mdast.url.startsWith("./");
+  const isLocal =
+    mdast.url.startsWith("./") ||
+    mdast.url.startsWith("../") ||
+    mdast.url.startsWith("/");
 
-  const url = isLocal
-    ? `/#/${path
-        .join(routeDir(args.route).join("/"), mdast.url)
-        .replace(/\\/g, "")}`
-    : mdast.url;
+  const localPath =
+    isLocal && path.join(...routeDir(args.route), mdast.url).replace(/\\/g, "");
+
+  const url = isLocal ? `/#/${localPath}` : mdast.url;
 
   return (
     <>
@@ -194,29 +206,25 @@ const MarkdownCode = ({ mdast, ...args }) => {
   );
 };
 
-const MarkdownInlineCode = ({ mdast }) => {
-  return <code className="f7 bg-light-gray pa1">{mdast.value}</code>;
-};
+const MarkdownInlineCode = ({ mdast }) => (
+  <code className="f7 bg-light-gray pa1">{mdast.value}</code>
+);
 
-const MarkdownEmphasis = ({ mdast, ...args }) => {
-  return (
-    <span className="i">
-      {mdast.children.map(child => (
-        <Markdown key={child.id} mdast={child} {...args} />
-      ))}
-    </span>
-  );
-};
+const MarkdownEmphasis = ({ mdast, ...args }) => (
+  <span className="i">
+    {mdast.children.map(child => (
+      <Markdown key={child.id} mdast={child} {...args} />
+    ))}
+  </span>
+);
 
-const MarkdownStrong = ({ mdast, ...args }) => {
-  return (
-    <span className="fw6">
-      {mdast.children.map(child => (
-        <Markdown key={child.id} mdast={child} {...args} />
-      ))}
-    </span>
-  );
-};
+const MarkdownStrong = ({ mdast, ...args }) => (
+  <span className="fw6">
+    {mdast.children.map(child => (
+      <Markdown key={child.id} mdast={child} {...args} />
+    ))}
+  </span>
+);
 
 const MarkdownImage = ({ mdast, ...args }) => {
   const isLocal = !mdast.url.startsWith("http");
@@ -229,53 +237,45 @@ const MarkdownImage = ({ mdast, ...args }) => {
   return <img src={url} alt={mdast.alt} />;
 };
 
-const MarkdownTable = ({ mdast, ...args }) => {
-  return (
-    <table className="w-100 pv2 f6" cellSpacing={0}>
-      <MarkdownTableHead mdast={mdast.children[0]} {...args} />
+const MarkdownTable = ({ mdast, ...args }) => (
+  <table className="w-100 pv2 f6" cellSpacing={0}>
+    <MarkdownTableHead mdast={mdast.children[0]} {...args} />
 
-      <tbody>
-        {mdast.children.slice(1).map(child => (
-          <Markdown key={child.id} mdast={child} {...args} />
-        ))}
-      </tbody>
-    </table>
-  );
-};
-
-const MarkdownTableHead = ({ mdast, ...args }) => {
-  return (
-    <thead>
-      <tr className="bg-white">
-        {mdast.children.map(child => (
-          <th className="fw6 pa2 bg-white" key={child.id}>
-            <Markdown mdast={child.children[0]} {...args} />
-          </th>
-        ))}
-      </tr>
-    </thead>
-  );
-};
-
-const MarkdownTableRow = ({ mdast, ...args }) => {
-  return (
-    <tr className="stripe-dark">
-      {mdast.children.map(child => (
+    <tbody>
+      {mdast.children.slice(1).map(child => (
         <Markdown key={child.id} mdast={child} {...args} />
+      ))}
+    </tbody>
+  </table>
+);
+
+const MarkdownTableHead = ({ mdast, ...args }) => (
+  <thead>
+    <tr className="bg-white">
+      {mdast.children.map(child => (
+        <th className="fw6 pa2 bg-white" key={child.id}>
+          <Markdown mdast={child.children[0]} {...args} />
+        </th>
       ))}
     </tr>
-  );
-};
+  </thead>
+);
 
-const MarkdownTableCell = ({ mdast, ...args }) => {
-  return (
-    <td className="pa2">
-      {mdast.children.map(child => (
-        <Markdown key={child.id} mdast={child} {...args} />
-      ))}
-    </td>
-  );
-};
+const MarkdownTableRow = ({ mdast, ...args }) => (
+  <tr className="stripe-dark">
+    {mdast.children.map(child => (
+      <Markdown key={child.id} mdast={child} {...args} />
+    ))}
+  </tr>
+);
+
+const MarkdownTableCell = ({ mdast, ...args }) => (
+  <td className="pa2">
+    {mdast.children.map(child => (
+      <Markdown key={child.id} mdast={child} {...args} />
+    ))}
+  </td>
+);
 
 const MarkdownConcealEdit = ({ mdast, ...args }) => {
   const [text, setText] = useState(null);
@@ -375,7 +375,9 @@ const Markdown = ({ mdast, onCommit, ...args }) => {
       blockquote: MarkdownBlockquote,
       table: MarkdownTable,
       tableRow: MarkdownTableRow,
-      tableCell: MarkdownTableCell
+      tableCell: MarkdownTableCell,
+      thematicBreak: MarkdownThematicBreak,
+      delete: MarkdownDelete
     };
 
     if (types[mdast.type] === undefined) {
