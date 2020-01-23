@@ -1,6 +1,6 @@
 const { chain, intersection } = require("lodash");
 
-module.exports = ({ tfidf, ...options }) => {
+module.exports = ({ ...options }) => {
   const keyToIndex = key => tfidf.documents.findIndex(doc => doc.__key === key);
   const termsForFile = file =>
     tfidf.listTerms(keyToIndex(file)).map(({ term }) => term);

@@ -9,7 +9,6 @@ const { spawn } = require("child_process");
 
 const createCache = require("./utils/cache");
 const getAsset = require("./get-asset");
-const related = require("./related");
 const serveUI = require("./ui");
 const tasks = require("./tasks");
 
@@ -25,12 +24,6 @@ const args = yargs
     days: { default: undefined },
     overdue: { default: true },
     "files-with-matches": {}
-  })
-  .command("related", "find all notes related to given file", yargs => {
-    yargs.option("file", {
-      demandOption: true,
-      describe: "input file to search for related ones"
-    });
   })
   .command(
     "get-asset",
@@ -97,20 +90,6 @@ const COMMANDS = {
     cache.store();
   },
 
-  related: () => {
-    const config = loadConfig();
-    const cache = createCache(config.dir);
-
-    cache.parse();
-
-    related({
-      tfidf: cache.getTfidf(),
-      file: args.file.replace(config.dir, "")
-    });
-
-    cache.store();
-  },
-
   ui: () => {
     const config = loadConfig();
     const cache = createCache(config.dir);
@@ -135,7 +114,7 @@ const COMMANDS = {
   "clear-cache": () => {
     const config = loadConfig();
     const cache = createCache(config.dir);
-    cache.clear()
+    cache.clear();
   }
 };
 
