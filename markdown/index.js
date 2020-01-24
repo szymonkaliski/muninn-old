@@ -40,17 +40,17 @@ const withoutParents = mdast => {
   return mdast;
 };
 
-const withoutPositions = mdast => {
-  delete mdast.position;
+// const withoutPositions = mdast => {
+//   delete mdast.position;
 
-  if (mdast.children) {
-    mdast.children.forEach(child => {
-      withoutPositions(child);
-    });
-  }
+//   if (mdast.children) {
+//     mdast.children.forEach(child => {
+//       withoutPositions(child);
+//     });
+//   }
 
-  return mdast;
-};
+//   return mdast;
+// };
 
 const stringifyMdast = mdast => {
   return unified()
@@ -71,11 +71,15 @@ const fastStringifyMdast = mdast => {
   return mdast.children
     .filter(({ value = "" }) => !value.startsWith("\n"))
     .map(({ value, type, ...rest }) => {
+      // console.log({ value, type, rest })
+
       switch (type) {
         case "inlinceCode":
           return `\`${value}\``;
 
         case "link":
+        case "listItem":
+        case "paragraph":
           return fastStringifyMdast({ children: rest.children });
 
         default:
@@ -86,13 +90,11 @@ const fastStringifyMdast = mdast => {
 };
 
 const parseMarkdown = text => {
-  return withoutPositions(
-    withIds(
-      unified()
-        .use(markdown)
-        .use(remarkDue)
-        .parse(text)
-    )
+  return withIds(
+    unified()
+      .use(markdown)
+      .use(remarkDue)
+      .parse(text)
   );
 };
 

@@ -7,6 +7,7 @@ const path = require("path");
 const yargs = require("yargs");
 const { spawn } = require("child_process");
 
+const backlinks = require("./backlinks");
 const createCache = require("./utils/cache");
 const getAsset = require("./get-asset");
 const serveUI = require("./ui");
@@ -24,6 +25,18 @@ const args = yargs
     days: { default: undefined },
     overdue: { default: true },
     "files-with-matches": {}
+  })
+  .command("backlinks", "find all notes related to given file", yargs => {
+    yargs.option("file", {
+      demandOption: true,
+      describe: "input file to search for backlinks"
+    });
+
+    yargs.option("vim", {
+      default: false,
+      type: "boolean",
+      describe: "format output for vim"
+    });
   })
   .command(
     "get-asset",
@@ -85,6 +98,21 @@ const COMMANDS = {
       overdue: args.overdue,
       days: args.days,
       filesWithMatches: args["files-with-matches"]
+    });
+
+    cache.store();
+  },
+
+  backlinks: () => {
+    const config = loadConfig();
+    const cache = createCache(config.dir);
+
+    cache.parse();
+
+    backlinks({
+      files: cache.getFiles(),
+      file: args.file.replace(config.dir, ""),
+      vim: args.vim
     });
 
     cache.store();
