@@ -86,6 +86,7 @@ module.exports = ({ files, file, ...options }) => {
         lineText: stripMarkdown(content.split("\n")[line - 1])
       }))
     )
+    .filter(({ fileName }) => fileName !== file)
     .uniqBy(({ line, column, fileName }) => [fileName, line, column].join(":"))
     .sortBy(["fileName", "line", "column"])
     .value();
