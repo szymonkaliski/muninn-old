@@ -23,7 +23,8 @@ const createCache = () => {
 
   if (fs.existsSync(CACHE_FILE)) {
     try {
-      cachedData = require(CACHE_FILE);
+      // cachedData = require(CACHE_FILE);
+      cachedData = JSON.parse(fs.readFileSync(CACHE_FILE), "utf-8");
     } catch (e) {
       console.error(e);
     }
@@ -34,13 +35,10 @@ const createCache = () => {
   }
 
   const store = () => {
-    const cacheData = cache.dump().map(d => ({
-      ...d,
-      v: {
-        ...d.v,
-        mdast: withoutParents(d.v.mdast)
-      }
-    }));
+    const cacheData = cache.dump().map(d => {
+      d.v.mdast = withoutParents(d.v.mdast);
+      return d;
+    });
 
     const json = JSON.stringify(cacheData);
 
@@ -70,8 +68,6 @@ module.exports = dir => {
       let mdast, content;
 
       if (cached.mtimeMs !== mtimeMs) {
-        console.log("no/different mtimeMs for", fullPath);
-
         content = fs.readFileSync(fullPath, { encoding: "utf-8" });
         mdast = parseMarkdown(content);
 
@@ -81,7 +77,9 @@ module.exports = dir => {
         content = cached.content;
       }
 
-      return { ...memo, [file]: { content, mdast } };
+      memo[file] = { content, mdast };
+
+      return memo;
     }, {});
   };
 

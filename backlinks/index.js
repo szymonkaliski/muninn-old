@@ -1,6 +1,6 @@
 const chalk = require("chalk");
 const path = require("path");
-const { chain, identity } = require("lodash");
+const { chain, identity, flatten } = require("lodash");
 
 const traverse = (node, callback) => {
   callback(node);
@@ -72,10 +72,10 @@ module.exports = ({ files, file, ...options }) => {
     .map(([fileName, { mdast, content }]) => ({
       fileName,
       content,
-      lineNumbers: [
-        ...linesLinkedByLink({ mdast, fileName, fileSearch }),
-        ...linesLinkedByFile({ content, titleSearch })
-      ]
+      lineNumbers: flatten([
+        linesLinkedByLink({ mdast, fileName, fileSearch }),
+        linesLinkedByFile({ content, titleSearch })
+      ])
     }))
     .filter(({ lineNumbers }) => lineNumbers.length > 0)
     .flatMap(({ lineNumbers, fileName, content }) =>
