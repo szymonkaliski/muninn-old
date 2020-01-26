@@ -2,7 +2,6 @@ const LRU = require("lru-cache");
 const envPaths = require("env-paths");
 const fs = require("fs");
 const glob = require("glob");
-const md5 = require("md5");
 const mkdirp = require("mkdirp");
 const path = require("path");
 
@@ -37,7 +36,10 @@ const createCache = () => {
   const store = () => {
     const cacheData = cache.dump().map(d => ({
       ...d,
-      v: withoutParents(d.v)
+      v: {
+        ...d.v,
+        mdast: withoutParents(d.v.mdast)
+      }
     }));
 
     const json = JSON.stringify(cacheData);
@@ -62,14 +64,21 @@ module.exports = dir => {
 
     return files.reduce((memo, file) => {
       const fullPath = path.join(dir, file);
-      const content = fs.readFileSync(fullPath, { encoding: "utf-8" });
-      const hash = md5(content);
+      const mtimeMs = fs.statSync(fullPath).mtimeMs;
+      const cached = cache.get(fullPath) || {};
 
-      let mdast = cache.get(hash);
+      let mdast, content;
 
-      if (!mdast) {
+      if (cached.mtimeMs !== mtimeMs) {
+        console.log("no/different mtimeMs for", fullPath);
+
+        content = fs.readFileSync(fullPath, { encoding: "utf-8" });
         mdast = parseMarkdown(content);
-        cache.set(hash, mdast);
+
+        cache.set(fullPath, { mtimeMs, mdast, content });
+      } else {
+        mdast = cached.mdast;
+        content = cached.content;
       }
 
       return { ...memo, [file]: { content, mdast } };
