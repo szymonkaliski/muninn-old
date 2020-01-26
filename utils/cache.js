@@ -57,6 +57,9 @@ const createCache = () => {
 module.exports = dir => {
   const { cache, store, clear } = createCache();
 
+  let needsStoring = false;
+  let files = {};
+
   const parseFiles = dir => {
     const files = glob.sync("**/*.md", { cwd: dir });
 
@@ -72,6 +75,7 @@ module.exports = dir => {
         mdast = parseMarkdown(content);
 
         cache.set(fullPath, { mtimeMs, mdast, content });
+        needsStoring = true;
       } else {
         mdast = cached.mdast;
         content = cached.content;
@@ -83,15 +87,13 @@ module.exports = dir => {
     }, {});
   };
 
-  let files = {};
-
   const parse = () => {
     files = parseFiles(dir);
   };
 
   return {
     parse,
-    store,
+    store: () => needsStoring && store(),
     clear,
 
     getFiles: () => files // not sure why just putting `files: files` here doesn't work
