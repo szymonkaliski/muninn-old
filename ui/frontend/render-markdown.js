@@ -58,7 +58,7 @@ const MarkdownList = ({ mdast, ...args }) => {
     get(mdast, ["parent", "type"]) !== "listItem" ? "pl0" : "pl4";
 
   return React.createElement(el, {
-    className: `lh-copy list ${paddingLeft}`,
+    className: `lh-copy list ${paddingLeft} ma0`,
     onClick: () => {
       args.isEditable && args.setEditingId(mdast.id);
     },

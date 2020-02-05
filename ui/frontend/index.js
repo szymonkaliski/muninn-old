@@ -1,10 +1,11 @@
 const path = require("path");
 const React = require("react");
 const ReactDOM = require("react-dom");
-const { ClientSocket, useSocket } = require("use-socketio");
+const { SocketIOProvider, useSocket } = require("use-socketio");
 const { last, chain } = require("lodash");
 
 const Markdown = require("./render-markdown");
+const Backlinks = require("./render-backlinks");
 const useRoute = require("./use-route");
 const { withParents } = require("../../markdown");
 
@@ -79,7 +80,8 @@ const App = () => {
     return null;
   }
 
-  const { mdast } = data.files[route.join("/")] || {};
+  const file = route.join("/");
+  const { mdast } = data.files[file] || {};
 
   const directoryFiles = Object.keys(data.files).filter(key =>
     key.startsWith(route.join("/"))
@@ -90,12 +92,20 @@ const App = () => {
       <RouteNavigation route={route} />
 
       {mdast ? (
-        <Markdown
-          mdast={withParents(mdast)}
-          dir={data.dir}
-          route={route}
-          isEditable={false}
-        />
+        <>
+          <Markdown
+            dir={data.dir}
+            isEditable={false}
+            mdast={withParents(mdast)}
+            route={route}
+          />
+          <Backlinks
+            dir={data.dir}
+            file={file}
+            files={data.files}
+            route={route}
+          />
+        </>
       ) : (
         <Directory files={directoryFiles} route={route} />
       )}
@@ -104,8 +114,8 @@ const App = () => {
 };
 
 ReactDOM.render(
-  <ClientSocket>
+  <SocketIOProvider>
     <App />
-  </ClientSocket>,
+  </SocketIOProvider>,
   document.getElementById("app")
 );
