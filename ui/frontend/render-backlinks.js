@@ -1,11 +1,12 @@
 const React = require("react");
+const path = require("path");
 const { chain } = require("lodash");
 
 const Markdown = require("./render-markdown");
 const find = require("../../backlinks/find");
 const { parseMarkdown, withParents } = require("../../markdown");
 
-module.exports = ({ file, files, dir, route }) => {
+module.exports = ({ file, files, dir }) => {
   const links = find({ file, files });
 
   if (links.length === 0) {
@@ -38,6 +39,9 @@ module.exports = ({ file, files, dir, route }) => {
               const text = lineText.trim().replace(/^#+/, "");
               const mdast = parseMarkdown(text);
 
+              const finalDir = path.join(dir, path.dirname(fileName));
+              const finalRoute = path.dirname(fileName).split("/");
+
               return (
                 <div
                   key={[fileName, line, column].join("-")}
@@ -45,9 +49,8 @@ module.exports = ({ file, files, dir, route }) => {
                 >
                   <Markdown
                     mdast={withParents(mdast)}
-                    dir={dir}
-                    isEditable={false}
-                    route={route}
+                    dir={finalDir}
+                    route={finalRoute}
                   />
                 </div>
               );

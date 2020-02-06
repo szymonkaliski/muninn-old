@@ -74,6 +74,7 @@ const App = () => {
 
   useEffect(() => {
     document.title = `${route.length > 0 ? route.join("/") : "/"} · muninn`;
+    window.scrollTo(0, 0);
   }, [route]);
 
   if (!data) {
@@ -93,12 +94,7 @@ const App = () => {
 
       {mdast ? (
         <>
-          <Markdown
-            dir={data.dir}
-            isEditable={false}
-            mdast={withParents(mdast)}
-            route={route}
-          />
+          <Markdown dir={data.dir} mdast={withParents(mdast)} route={route} />
           <Backlinks
             dir={data.dir}
             file={file}

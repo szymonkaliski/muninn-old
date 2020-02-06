@@ -45,7 +45,7 @@ const MarkdownDelete = ({ mdast, ...args }) => (
 );
 
 const MarkdownBlockquote = ({ mdast, ...args }) => (
-  <blockquote className="serif ml0 mt0 pl2 bl bw2 b--light-gray">
+  <blockquote className="serif ml0 mt0 pl2 bl bw2 b--light-gray lh-copy">
     {mdast.children.map(child => (
       <Markdown key={child.id} mdast={child} {...args} />
     ))}
@@ -62,8 +62,8 @@ const MarkdownList = ({ mdast, ...args }) => {
     onClick: () => {
       args.isEditable && args.setEditingId(mdast.id);
     },
-    children: mdast.children.map((child, i) => (
-      <Markdown key={child.id} mdast={child} idx={i} {...args} />
+    children: mdast.children.map(child => (
+      <Markdown key={child.id} mdast={child} {...args} />
     ))
   });
 };
@@ -71,7 +71,12 @@ const MarkdownList = ({ mdast, ...args }) => {
 const MarkdownListItem = ({ mdast, ...args }) => {
   const isOrdered = mdast.parent.ordered;
   const isTodo = mdast.checked !== null;
-  const dash = isOrdered ? `${args.idx + 1}.` : "-";
+
+  let idx = isOrdered
+    ? mdast.parent.children.findIndex(({ id }) => id === mdast.id)
+    : 0;
+
+  const dash = isOrdered ? `${idx + 1}.` : "-";
 
   const [firstChild, ...restChildren] = mdast.children;
   const shouldIndentChildren = get(restChildren, [0, "type"]) !== "list";
@@ -142,10 +147,7 @@ const MarkdownParagraph = ({ mdast, dontWrapParagraph, ...args }) => {
 };
 
 const MarkdownLink = ({ mdast, ...args }) => {
-  const isLocal =
-    mdast.url.startsWith("./") ||
-    mdast.url.startsWith("../") ||
-    mdast.url.startsWith("/");
+  const isLocal = !mdast.url.match(/^http(s)?:\/\//);
 
   const localPath =
     isLocal && path.join(...routeDir(args.route), mdast.url).replace(/\\/g, "");
@@ -227,7 +229,7 @@ const MarkdownStrong = ({ mdast, ...args }) => (
 );
 
 const MarkdownImage = ({ mdast, ...args }) => {
-  const isLocal = !mdast.url.startsWith("http");
+  const isLocal = !mdast.url.match(/^http(s)?:\/\//);
 
   const url = isLocal
     ? "/asset/?path=" +

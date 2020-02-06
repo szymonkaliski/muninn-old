@@ -14,10 +14,7 @@ const linesLinkedByLink = ({ mdast, fileName, file }) => {
 
   traverse(mdast, node => {
     if (node.type === "link") {
-      const isLocal =
-        node.url.startsWith("./") ||
-        node.url.startsWith("../") ||
-        node.url.startsWith("/");
+      const isLocal = !node.url.match(/^http(s)?:\/\//);
 
       if (isLocal) {
         const linkedFile = path.join(path.dirname(fileName), node.url);
@@ -71,13 +68,15 @@ module.exports = ({ files, file }) => {
       .replace(/^#+\ /, "")
       .toLowerCase();
 
+  const fileSearch = file.replace(/\ /g, "\\ ");
+
   return chain(files)
     .entries()
     .map(([fileName, { mdast, content }]) => ({
       fileName,
       content,
       lineNumbers: flatten([
-        linesLinkedByLink({ mdast, fileName, file }),
+        linesLinkedByLink({ mdast, fileName, file: fileSearch }),
         hasTitle ? linesLinkedByFile({ content, title }) : []
       ])
     }))

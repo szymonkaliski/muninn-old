@@ -4,8 +4,7 @@ const { chain } = require("lodash");
 const find = require("./find");
 
 module.exports = ({ files, file, ...options }) => {
-  const fileSearch = file.replace(/\ /g, "\\ ");
-  const linked = find({ files, file: fileSearch });
+  const linked = find({ files, file });
 
   if (options.vim) {
     linked.forEach(({ fileName, line, column, lineText }) => {
