@@ -1,5 +1,5 @@
 const path = require("path");
-const { chain, identity, flatten, get } = require("lodash");
+const { chain, get } = require("lodash");
 
 const traverse = (node, callback) => {
   callback(node);
@@ -9,17 +9,26 @@ const traverse = (node, callback) => {
   }
 };
 
-const linesLinkedByLink = ({ mdast, fileName, file }) => {
+const findLinked = ({ mdast, fileName, fileSearch, titleSearch }) => {
   const lineNumbers = [];
 
   traverse(mdast, node => {
+    if (node.type === "text") {
+      if (
+        node.value.toLowerCase().includes(titleSearch) &&
+        node.parent.type !== "heading"
+      ) {
+        lineNumbers.push(node.position.start);
+      }
+    }
+
     if (node.type === "link") {
       const isLocal = !node.url.match(/^http(s)?:\/\//);
 
       if (isLocal) {
         const linkedFile = path.join(path.dirname(fileName), node.url);
 
-        if (file === linkedFile) {
+        if (fileSearch === linkedFile) {
           lineNumbers.push(node.position.start);
         }
       }
@@ -27,29 +36,6 @@ const linesLinkedByLink = ({ mdast, fileName, file }) => {
   });
 
   return lineNumbers;
-};
-
-const linesLinkedByFile = ({ content, title }) => {
-  const normalisedContent = content.toLowerCase();
-
-  if (!normalisedContent.includes(title)) {
-    return [];
-  }
-
-  return chain(normalisedContent)
-    .split("\n")
-    .map((line, index) => {
-      if (line.includes(title)) {
-        return {
-          line: index + 1,
-          column: line.indexOf(title)
-        };
-      }
-
-      return null;
-    })
-    .filter(identity)
-    .value();
 };
 
 module.exports = ({ files, file }) => {
@@ -75,21 +61,23 @@ module.exports = ({ files, file }) => {
     .map(([fileName, { mdast, content }]) => ({
       fileName,
       content,
-      lineNumbers: flatten([
-        linesLinkedByLink({ mdast, fileName, file: fileSearch }),
-        hasTitle ? linesLinkedByFile({ content, title }) : []
-      ])
+      lineNumbers: findLinked({
+        mdast,
+        fileName,
+        fileSearch,
+        titleSearch: title
+      })
     }))
     .flatMap(({ lineNumbers, fileName, content }) =>
       lineNumbers.map(({ line, column }) => ({
         line,
         column,
         fileName,
-        lineText: content.split("\n")[line - 1]
+        lineText: content.split("\n")[line - 1].trim()
       }))
     )
     .filter(({ fileName }) => fileName !== file)
-    .uniqBy(({ line, column, fileName }) => [fileName, line, column].join(":"))
+    .uniqBy(({ line, fileName }) => [fileName, line].join(":"))
     .sortBy(["fileName", "line", "column"])
     .value();
 };

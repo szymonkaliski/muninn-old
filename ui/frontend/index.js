@@ -70,7 +70,13 @@ const App = () => {
   const [route, _] = useRoute();
   const [data, setData] = useState(null);
 
-  useSocket("data", data => setData(data));
+  useSocket("data", data => {
+    Object.keys(data.files).forEach(key => {
+      data.files[key].mdast = withParents(data.files[key].mdast);
+    });
+
+    setData(data);
+  });
 
   useEffect(() => {
     document.title = `${route.length > 0 ? route.join("/") : "/"} · muninn`;
@@ -94,7 +100,7 @@ const App = () => {
 
       {mdast ? (
         <>
-          <Markdown dir={data.dir} mdast={withParents(mdast)} route={route} />
+          <Markdown dir={data.dir} mdast={mdast} route={route} />
           <Backlinks
             dir={data.dir}
             file={file}

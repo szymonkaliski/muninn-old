@@ -36,8 +36,8 @@ module.exports = ({ file, files, dir }) => {
             </h3>
 
             {links.map(({ fileName, line, column, lineText }) => {
-              const text = lineText.trim().replace(/^#+/, "");
-              const mdast = parseMarkdown(text);
+              const text = lineText.trim();
+              const mdast = withParents(parseMarkdown(text));
 
               const finalDir = path.join(dir, path.dirname(fileName));
               const finalRoute = path.dirname(fileName).split("/");
@@ -47,11 +47,7 @@ module.exports = ({ file, files, dir }) => {
                   key={[fileName, line, column].join("-")}
                   className="ml2 f6"
                 >
-                  <Markdown
-                    mdast={withParents(mdast)}
-                    dir={finalDir}
-                    route={finalRoute}
-                  />
+                  <Markdown mdast={mdast} dir={finalDir} route={finalRoute} />
                 </div>
               );
             })}
