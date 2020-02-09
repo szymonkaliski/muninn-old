@@ -321,6 +321,11 @@ const MarkdownConcealEdit = ({ mdast, ...args }) => {
   );
 };
 
+const MarkdownUnsupported = ({ mdast }) => {
+  console.warn(`Unsupported type ${mdast.type}`, mdast);
+  return mdast.value || mdast.text || null;
+};
+
 const Markdown = ({ mdast, onCommit, ...args }) => {
   if (args.isEditable && mdast.id === args.editingId) {
     return <MarkdownConcealEdit key={mdast.id} mdast={mdast} {...args} />;
@@ -383,8 +388,7 @@ const Markdown = ({ mdast, onCommit, ...args }) => {
     };
 
     if (types[mdast.type] === undefined) {
-      console.warn(`Unsupported type ${mdast.type}`, mdast);
-      return null;
+      return <MarkdownUnsupported mdast={mdast} />;
     }
 
     return React.createElement(types[mdast.type], {

@@ -15,10 +15,12 @@ const findLinked = ({ mdast, fileName, fileSearch, titleSearch }) => {
   traverse(mdast, node => {
     if (node.type === "text") {
       if (
+        titleSearch &&
         node.value.toLowerCase().includes(titleSearch) &&
         node.parent.type !== "heading"
       ) {
-        lineNumbers.push(node.position.start);
+        const position = node.position || node.parent.position;
+        lineNumbers.push(position.start);
       }
     }
 
