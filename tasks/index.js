@@ -16,28 +16,30 @@ const todosFromFiles = files => {
   const todosByDate = { overdue: [] };
 
   Object.entries(files).forEach(([file, { mdast }]) => {
-    visit(mdast, "due", (node, parents) => {
-      const isDone = nth(parents, -2).checked;
-      const isInPast = dateToNum(node.date) < TODAY_NUM;
-      const isOverdue = !isDone && isInPast;
-      const text = fastStringifyMdast(nth(parents, -1));
+    visit(mdast, "tag", (node, parents) => {
+      if (node.tagName === "due" && !!node.tagValue) {
+        const isDone = nth(parents, -2).checked;
+        const isInPast = dateToNum(node.tagValue) < TODAY_NUM;
+        const isOverdue = !isDone && isInPast;
+        const text = fastStringifyMdast(nth(parents, -1));
 
-      const todo = {
-        date: parse(node.date, DATE_FORMAT, Date.now()),
-        due: node.date,
-        file,
-        isDone: isDone,
-        text
-      };
+        const todo = {
+          date: parse(node.tagValue, DATE_FORMAT, Date.now()),
+          due: node.tagValue,
+          file,
+          isDone: isDone,
+          text
+        };
 
-      if (isOverdue) {
-        todosByDate.overdue.push(todo);
-      } else if (!isInPast) {
-        if (!todosByDate[node.date]) {
-          todosByDate[node.date] = [];
+        if (isOverdue) {
+          todosByDate.overdue.push(todo);
+        } else if (!isInPast) {
+          if (!todosByDate[todo.due]) {
+            todosByDate[todo.due] = [];
+          }
+
+          todosByDate[todo.due].push(todo);
         }
-
-        todosByDate[node.date].push(todo);
       }
     });
   });

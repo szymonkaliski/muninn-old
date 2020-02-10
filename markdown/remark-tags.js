@@ -1,5 +1,7 @@
-function tokenizeDues(eat, value, silent) {
-  const match = /^@due\((.*)\)/.exec(value);
+const TAG_REGEX = /^@(\w+)(\((.*)\))?/
+
+function tokenizeTags(eat, value, silent) {
+  const match = TAG_REGEX.exec(value);
 
   if (match) {
     if (silent) {
@@ -7,27 +9,28 @@ function tokenizeDues(eat, value, silent) {
     }
 
     return eat(match[0])({
-      type: "due",
+      type: "tag",
       value: match[0],
-      date: match[1],
+      tagName: match[1],
+      tagValue: match[3],
       children: [{ type: "text", value: match[0] }]
     });
   }
 }
 
-function locateDue(value, fromIndex) {
+function locateTag(value, fromIndex) {
   return value.indexOf("@", fromIndex);
 }
 
-tokenizeDues.notInLink = true;
-tokenizeDues.locator = locateDue;
+tokenizeTags.notInLink = true;
+tokenizeTags.locator = locateTag;
 
-function remarkDues() {
+function remarkTags() {
   if (this.Compiler) {
     const Compiler = this.Compiler;
     const visitors = Compiler.prototype.visitors;
 
-    visitors.due = node => node.value;
+    visitors.tag = node => node.value;
   }
 
   if (this.Parser) {
@@ -35,10 +38,10 @@ function remarkDues() {
     const tokenizers = Parser.prototype.inlineTokenizers;
     const methods = Parser.prototype.inlineMethods;
 
-    tokenizers.due = tokenizeDues;
+    tokenizers.tag = tokenizeTags;
 
-    methods.splice(methods.indexOf("text"), 0, "due");
+    methods.splice(methods.indexOf("text"), 0, "tag");
   }
 }
 
-module.exports = remarkDues;
+module.exports = remarkTags;

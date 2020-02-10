@@ -3,7 +3,7 @@ const stringify = require("remark-stringify");
 const strip = require("strip-markdown");
 const unified = require("unified");
 
-const remarkDue = require("./remark-due");
+const remarkTags = require("./remark-tags");
 
 const withIds = (mdast, currentKey) => {
   if (mdast.children) {
@@ -58,7 +58,7 @@ const parseMarkdown = text => {
   return withIds(
     unified()
       .use(markdown)
-      .use(remarkDue)
+      .use(remarkTags)
       .parse(text)
   );
 };

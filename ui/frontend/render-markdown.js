@@ -173,26 +173,32 @@ const MarkdownLink = ({ mdast, ...args }) => {
   );
 };
 
-const MarkdownDue = ({ mdast }) => {
-  const dueDate = parse(mdast.date, DATE_FORMAT, Date.now());
+const MarkdownTag = ({ mdast }) => {
+  const isDue = mdast.tagName === "due" && !!mdast.tagValue;
 
-  const dueToday = isToday(dueDate);
-  const duePast = isBefore(dueDate, Date.now());
-  const dueFuture = isAfter(dueDate, Date.now());
+  if (isDue) {
+    const dueDate = parse(mdast.tagValue, DATE_FORMAT, Date.now());
 
-  const checked = get(mdast, ["parent", "parent", "checked"], false);
+    const dueToday = isToday(dueDate);
+    const duePast = isBefore(dueDate, Date.now());
+    const dueFuture = isAfter(dueDate, Date.now());
 
-  return (
-    <span
-      className={classNames({
-        green: dueToday && !checked,
-        red: duePast && !checked,
-        gray: dueFuture || checked
-      })}
-    >
-      {mdast.value}
-    </span>
-  );
+    const checked = get(mdast, ["parent", "parent", "checked"], false);
+
+    return (
+      <span
+        className={classNames({
+          green: dueToday && !checked,
+          red: duePast && !checked,
+          gray: dueFuture || checked
+        })}
+      >
+        {mdast.value}
+      </span>
+    );
+  } else {
+    return <span className="gray">{mdast.value}</span>;
+  }
 };
 
 const MarkdownCode = ({ mdast, ...args }) => {
@@ -321,9 +327,12 @@ const MarkdownConcealEdit = ({ mdast, ...args }) => {
   );
 };
 
+// unsupported
+const MarkdownLinkReference = ({ mdast }) => `[${mdast.label}]`;
+
 const MarkdownUnsupported = ({ mdast }) => {
   console.warn(`Unsupported type ${mdast.type}`, mdast);
-  return mdast.value || mdast.text || null;
+  return mdast.value || mdast.text || mdast.label || null;
 };
 
 const Markdown = ({ mdast, onCommit, ...args }) => {
@@ -367,24 +376,25 @@ const Markdown = ({ mdast, onCommit, ...args }) => {
     );
   } else if (mdast.type) {
     const types = {
+      blockquote: MarkdownBlockquote,
+      code: MarkdownCode,
+      delete: MarkdownDelete,
+      emphasis: MarkdownEmphasis,
       heading: MarkdownHeading,
-      text: MarkdownText,
+      image: MarkdownImage,
+      inlineCode: MarkdownInlineCode,
+      link: MarkdownLink,
+      linkReference: MarkdownLinkReference,
       list: MarkdownList,
       listItem: MarkdownListItem,
       paragraph: MarkdownParagraph,
-      link: MarkdownLink,
-      code: MarkdownCode,
-      inlineCode: MarkdownInlineCode,
-      image: MarkdownImage,
-      due: MarkdownDue,
-      emphasis: MarkdownEmphasis,
       strong: MarkdownStrong,
-      blockquote: MarkdownBlockquote,
       table: MarkdownTable,
-      tableRow: MarkdownTableRow,
       tableCell: MarkdownTableCell,
-      thematicBreak: MarkdownThematicBreak,
-      delete: MarkdownDelete
+      tableRow: MarkdownTableRow,
+      tag: MarkdownTag,
+      text: MarkdownText,
+      thematicBreak: MarkdownThematicBreak
     };
 
     if (types[mdast.type] === undefined) {
