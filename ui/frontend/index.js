@@ -1,13 +1,13 @@
-const path = require("path");
 const React = require("react");
 const ReactDOM = require("react-dom");
+const path = require("path");
+const withParents = require("unist-util-parents");
 const { SocketIOProvider, useSocket } = require("use-socketio");
 const { last, chain } = require("lodash");
 
-const Markdown = require("./render-markdown");
 const Backlinks = require("./render-backlinks");
+const Markdown = require("./render-markdown");
 const useRoute = require("./use-route");
-const { withParents } = require("../../markdown");
 
 require("tachyons");
 

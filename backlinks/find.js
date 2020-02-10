@@ -1,25 +1,18 @@
 const path = require("path");
-const { chain, get } = require("lodash");
-
-const traverse = (node, callback) => {
-  callback(node);
-
-  if (node.children) {
-    node.children.forEach(child => traverse(child, callback));
-  }
-};
+const visit = require("unist-util-visit-parents");
+const { chain, get, last } = require("lodash");
 
 const findLinked = ({ mdast, fileName, fileSearch, titleSearch }) => {
   const lineNumbers = [];
 
-  traverse(mdast, node => {
+  visit(mdast, (node, parents) => {
     if (node.type === "text") {
       if (
         titleSearch &&
         node.value.toLowerCase().includes(titleSearch) &&
-        node.parent.type !== "heading"
+        last(parents).type !== "heading"
       ) {
-        const position = node.position || node.parent.position;
+        const position = node.position || last(parents).position;
         lineNumbers.push(position.start);
       }
     }

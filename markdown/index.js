@@ -17,41 +17,6 @@ const withIds = (mdast, currentKey) => {
   return mdast;
 };
 
-const withParents = (mdast, parent) => {
-  if (mdast.children) {
-    mdast.children.forEach(child => {
-      child.parent = parent || mdast;
-      withParents(child, parent);
-    });
-  }
-
-  return mdast;
-};
-
-const withoutParents = mdast => {
-  delete mdast.parent;
-
-  if (mdast.children) {
-    mdast.children.forEach(child => {
-      withoutParents(child);
-    });
-  }
-
-  return mdast;
-};
-
-// const withoutPositions = mdast => {
-//   delete mdast.position;
-
-//   if (mdast.children) {
-//     mdast.children.forEach(child => {
-//       withoutPositions(child);
-//     });
-//   }
-
-//   return mdast;
-// };
-
 const stringifyMdast = mdast => {
   return unified()
     .use(stringify, { listItemIndent: 1, fences: true })
@@ -100,9 +65,6 @@ const parseMarkdown = text => {
 
 module.exports = {
   parseMarkdown,
-  withParents,
-  withoutParents,
-
   stringifyMdast,
   stringifyMdastToPlainText,
   fastStringifyMdast

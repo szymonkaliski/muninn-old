@@ -1,16 +1,9 @@
 const chalk = require("chalk");
+const visit = require("unist-util-visit-parents");
 const { parse, format, differenceInHours } = require("date-fns");
-const { sortBy, chain, get } = require("lodash");
+const { sortBy, chain, nth } = require("lodash");
 
-const { fastStringifyMdast, withParents } = require("../markdown");
-
-const traverse = (node, callback) => {
-  callback(node);
-
-  if (node.children) {
-    node.children.forEach(child => traverse(child, callback));
-  }
-};
+const { fastStringifyMdast } = require("../markdown");
 
 const dateToNum = date => (date ? parseInt(date.replace(/-/g, "")) : 0);
 
@@ -23,30 +16,28 @@ const todosFromFiles = files => {
   const todosByDate = { overdue: [] };
 
   Object.entries(files).forEach(([file, { mdast }]) => {
-    traverse(withParents(mdast), node => {
-      if (node.type === "due") {
-        const isDone = get(node, "parent.parent.checked", false);
-        const isInPast = dateToNum(node.date) < TODAY_NUM;
-        const isOverdue = !isDone && isInPast;
-        const text = fastStringifyMdast(node.parent);
+    visit(mdast, "due", (node, parents) => {
+      const isDone = nth(parents, -2).checked;
+      const isInPast = dateToNum(node.date) < TODAY_NUM;
+      const isOverdue = !isDone && isInPast;
+      const text = fastStringifyMdast(nth(parents, -1));
 
-        const todo = {
-          date: parse(node.date, DATE_FORMAT, Date.now()),
-          due: node.date,
-          file,
-          isDone: isDone,
-          text
-        };
+      const todo = {
+        date: parse(node.date, DATE_FORMAT, Date.now()),
+        due: node.date,
+        file,
+        isDone: isDone,
+        text
+      };
 
-        if (isOverdue) {
-          todosByDate.overdue.push(todo);
-        } else if (!isInPast) {
-          if (!todosByDate[node.date]) {
-            todosByDate[node.date] = [];
-          }
-
-          todosByDate[node.date].push(todo);
+      if (isOverdue) {
+        todosByDate.overdue.push(todo);
+      } else if (!isInPast) {
+        if (!todosByDate[node.date]) {
+          todosByDate[node.date] = [];
         }
+
+        todosByDate[node.date].push(todo);
       }
     });
   });

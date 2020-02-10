@@ -5,7 +5,7 @@ const glob = require("glob");
 const mkdirp = require("mkdirp");
 const path = require("path");
 
-const { parseMarkdown, withoutParents } = require("../markdown");
+const { parseMarkdown } = require("../markdown");
 
 const CACHE_PATH = envPaths("muninn").cache;
 const CACHE_FILE = path.join(CACHE_PATH, "cache.json");
@@ -35,13 +35,7 @@ const createCache = () => {
   }
 
   const store = () => {
-    const cacheData = cache.dump().map(d => {
-      d.v.mdast = withoutParents(d.v.mdast);
-      return d;
-    });
-
-    const json = JSON.stringify(cacheData);
-
+    const json = JSON.stringify(cache.dump());
     fs.writeFileSync(CACHE_FILE, json, { encoding: "utf-8" });
   };
 

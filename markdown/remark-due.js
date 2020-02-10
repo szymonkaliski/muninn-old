@@ -1,4 +1,4 @@
-function tokenizeDates(eat, value, silent) {
+function tokenizeDues(eat, value, silent) {
   const match = /^@due\((.*)\)/.exec(value);
 
   if (match) {
@@ -19,10 +19,10 @@ function locateDue(value, fromIndex) {
   return value.indexOf("@", fromIndex);
 }
 
-tokenizeDates.notInLink = true;
-tokenizeDates.locator = locateDue;
+tokenizeDues.notInLink = true;
+tokenizeDues.locator = locateDue;
 
-function remarkDates() {
+function remarkDues() {
   if (this.Compiler) {
     const Compiler = this.Compiler;
     const visitors = Compiler.prototype.visitors;
@@ -35,10 +35,10 @@ function remarkDates() {
     const tokenizers = Parser.prototype.inlineTokenizers;
     const methods = Parser.prototype.inlineMethods;
 
-    tokenizers["due"] = tokenizeDates;
+    tokenizers.due = tokenizeDues;
 
     methods.splice(methods.indexOf("text"), 0, "due");
   }
 }
 
-module.exports = remarkDates;
+module.exports = remarkDues;

@@ -36,6 +36,8 @@
     "strip-markdown": "^3.1.1",
     "tachyons": "^4.11.1",
     "unified": "^8.4.2",
+    "unist-util-parents": "^1.0.3",
+    "unist-util-visit-parents": "^3.0.1",
     "use-socketio": "^2.0.0",
     "yargs": "^15.1.0"
   },

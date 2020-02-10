@@ -1,10 +1,11 @@
 const React = require("react");
 const path = require("path");
+const withParents = require("unist-util-parents");
 const { chain } = require("lodash");
 
 const Markdown = require("./render-markdown");
 const find = require("../../backlinks/find");
-const { parseMarkdown, withParents } = require("../../markdown");
+const { parseMarkdown } = require("../../markdown");
 
 module.exports = ({ file, files, dir }) => {
   const links = find({ file, files });
