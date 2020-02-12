@@ -20,14 +20,14 @@ const withIds = (mdast, currentKey) => {
 const stringifyMdast = mdast => {
   return unified()
     .use(stringify, { listItemIndent: 1, fences: true })
-    .use(remarkDue)
+    .use(remarkTags)
     .stringify(mdast);
 };
 
 const stringifyMdastToPlainText = mdast => {
   return unified()
     .use(stringify, { listItemIndent: 1, fences: true })
-    .use(remarkDue)
+    .use(remarkTags)
     .use(strip)
     .stringify(mdast);
 };

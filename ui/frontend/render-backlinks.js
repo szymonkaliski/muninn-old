@@ -5,7 +5,6 @@ const { chain } = require("lodash");
 
 const Markdown = require("./render-markdown");
 const find = require("../../backlinks/find");
-const { parseMarkdown } = require("../../markdown");
 
 module.exports = ({ file, files, dir }) => {
   const links = find({ file, files });
@@ -36,19 +35,18 @@ module.exports = ({ file, files, dir }) => {
               </a>
             </h3>
 
-            {links.map(({ fileName, line, column, lineText }) => {
-              const text = lineText.trim();
-              const mdast = withParents(parseMarkdown(text));
-
+            {links.map(({ fileName, mdast }) => {
               const finalDir = path.join(dir, path.dirname(fileName));
               const finalRoute = path.dirname(fileName).split("/");
+              const key = fileName + ":" + mdast.id;
 
               return (
-                <div
-                  key={[fileName, line, column].join("-")}
-                  className="ml2 f6"
-                >
-                  <Markdown mdast={mdast} dir={finalDir} route={finalRoute} />
+                <div key={key} className="ml2 f6">
+                  <Markdown
+                    mdast={withParents(mdast)}
+                    dir={finalDir}
+                    route={finalRoute}
+                  />
                 </div>
               );
             })}

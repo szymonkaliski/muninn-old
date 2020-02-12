@@ -1,9 +1,21 @@
 const path = require("path");
 const visit = require("unist-util-visit-parents");
-const { chain, get, last } = require("lodash");
+const { chain, get, last, findLastIndex } = require("lodash");
+
+const findMeaningfulParent = parents => {
+  const parentTypes = ["listItem", "blockquote", "paragraph"];
+
+  return parents[
+    chain(parentTypes)
+      .map(type => findLastIndex(parents, node => node.type === type))
+      .filter(idx => idx >= 0)
+      .min()
+      .value()
+  ];
+};
 
 const findLinked = ({ mdast, fileName, fileSearch, titleSearch }) => {
-  const lineNumbers = [];
+  const linked = [];
 
   visit(mdast, (node, parents) => {
     if (node.type === "text") {
@@ -12,25 +24,22 @@ const findLinked = ({ mdast, fileName, fileSearch, titleSearch }) => {
         node.value.toLowerCase().includes(titleSearch) &&
         last(parents).type !== "heading"
       ) {
-        const position = node.position || last(parents).position;
-        lineNumbers.push(position.start);
+        linked.push(findMeaningfulParent(parents));
       }
-    }
-
-    if (node.type === "link") {
+    } else if (node.type === "link") {
       const isLocal = !node.url.match(/^http(s)?:\/\//);
 
       if (isLocal) {
         const linkedFile = path.join(path.dirname(fileName), node.url);
 
         if (fileSearch === linkedFile) {
-          lineNumbers.push(node.position.start);
+          linked.push(findMeaningfulParent(parents));
         }
       }
     }
   });
 
-  return lineNumbers;
+  return linked;
 };
 
 module.exports = ({ files, file }) => {
@@ -51,28 +60,30 @@ module.exports = ({ files, file }) => {
 
   const fileSearch = file.replace(/\ /g, "\\ ");
 
-  return chain(files)
+  const linked = chain(files)
     .entries()
-    .map(([fileName, { mdast, content }]) => ({
+    .filter(([fileName, _]) => fileName !== file)
+    .map(([fileName, { mdast }]) => ({
       fileName,
-      content,
-      lineNumbers: findLinked({
+      linked: findLinked({
         mdast,
         fileName,
         fileSearch,
         titleSearch: title
       })
     }))
-    .flatMap(({ lineNumbers, fileName, content }) =>
-      lineNumbers.map(({ line, column }) => ({
-        line,
-        column,
-        fileName,
-        lineText: content.split("\n")[line - 1].trim()
-      }))
+    .flatMap(({ linked, fileName }) =>
+      linked.map(mdast => ({ fileName, mdast }))
     )
-    .filter(({ fileName }) => fileName !== file)
-    .uniqBy(({ line, fileName }) => [fileName, line].join(":"))
-    .sortBy(["fileName", "line", "column"])
+    .sortBy(["fileName", ({ mdast }) => mdast.id])
+    .uniqWith((a, b) => {
+      if (a.fileName !== b.fileName) {
+        return false;
+      }
+
+      return a.mdast.id.startsWith(b.mdast.id);
+    })
     .value();
+
+  return linked;
 };

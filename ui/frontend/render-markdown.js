@@ -69,7 +69,7 @@ const MarkdownList = ({ mdast, ...args }) => {
 };
 
 const MarkdownListItem = ({ mdast, ...args }) => {
-  const isOrdered = mdast.parent.ordered;
+  const isOrdered = get(mdast, "parent.ordered", false);
   const isTodo = mdast.checked !== null;
 
   let idx = isOrdered
@@ -82,7 +82,7 @@ const MarkdownListItem = ({ mdast, ...args }) => {
   const shouldIndentChildren = get(restChildren, [0, "type"]) !== "list";
 
   return (
-    <li>
+    <li className="list">
       <div className="dib" style={{ width: "20px" }}>
         {isTodo ? (
           <input

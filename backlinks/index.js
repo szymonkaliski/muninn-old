@@ -2,12 +2,16 @@ const chalk = require("chalk");
 const { chain } = require("lodash");
 
 const find = require("./find");
+const { stringifyMdast } = require("../markdown");
 
 module.exports = ({ files, file, ...options }) => {
   const linked = find({ files, file });
 
   if (options.vim) {
-    linked.forEach(({ fileName, line, column, lineText }) => {
+    linked.forEach(({ fileName, mdast }) => {
+      const { line, column } = mdast.position.start;
+      const lineText = stringifyMdast(mdast).split("\n")[0];
+
       console.log([fileName, line, column, lineText].join(":"));
     });
   } else {
@@ -17,7 +21,7 @@ module.exports = ({ files, file, ...options }) => {
       .forEach(([fileName, linked]) => {
         console.log(`${chalk.blue(fileName)}:`);
 
-        linked.forEach(({ lineText }) => console.log(lineText.trim()));
+        linked.forEach(({ mdast }) => console.log(stringifyMdast(mdast)));
 
         console.log();
       })
