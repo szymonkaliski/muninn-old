@@ -1,9 +1,9 @@
 const chalk = require("chalk");
 const visit = require("unist-util-visit-parents");
 const { parse, format, differenceInHours } = require("date-fns");
-const { sortBy, chain, nth } = require("lodash");
+const { sortBy, chain, nth, flatMap } = require("lodash");
 
-const { fastStringifyMdast } = require("../markdown");
+const { stringifyMdast } = require("../markdown");
 
 const dateToNum = date => (date ? parseInt(date.replace(/-/g, "")) : 0);
 
@@ -18,17 +18,19 @@ const todosFromFiles = files => {
   Object.entries(files).forEach(([file, { mdast }]) => {
     visit(mdast, "tag", (node, parents) => {
       if (node.tagName === "due" && !!node.tagValue) {
-        const isDone = nth(parents, -2).checked;
+        const isDone = nth(parents, -2).checked === true;
         const isInPast = dateToNum(node.tagValue) < TODAY_NUM;
         const isOverdue = !isDone && isInPast;
-        const text = fastStringifyMdast(nth(parents, -1));
+
+        const text = stringifyMdast(nth(parents, -2));
 
         const todo = {
           date: parse(node.tagValue, DATE_FORMAT, Date.now()),
           due: node.tagValue,
           file,
-          isDone: isDone,
-          text
+          isDone,
+          text,
+          position: node.position
         };
 
         if (isOverdue) {
@@ -57,59 +59,73 @@ module.exports = options => {
     .omit(["overdue"])
     .entries()
     .sortBy(t => dateToNum(t[0]))
+    .filter(([date, _]) => {
+      if (
+        options.days !== undefined &&
+        differenceInHours(parse(date, DATE_FORMAT, Date.now()), TODAY_DATE) >
+          Math.max(options.days - 1, 0) * 24
+      ) {
+        return;
+      } else {
+        return true;
+      }
+    })
     .value();
 
-  if (overdue.length > 0 && options.overdue) {
-    console.log(chalk.red("Overdue"));
+  if (options.vim) {
+    const log = todos => {
+      todos.forEach(todo => {
+        const { line, column } = todo.position.start;
+        const firstLine = todo.text.split("\n")[0];
 
-    overdue.forEach(task => {
-      console.log(`- ${chalk.blue(task.file)}: ${task.text}`);
-    });
+        console.log([todo.file, line, column, firstLine].join(":"));
+      });
+    };
 
-    console.log();
-  }
-
-  const filesOnlyList = [];
-
-  todos.forEach(([date, tasks]) => {
-    if (
-      options.days !== undefined &&
-      differenceInHours(parse(date, DATE_FORMAT, Date.now()), TODAY_DATE) >
-        Math.max(options.days - 1, 0) * 24
-    ) {
-      return;
+    if (options.overdue && overdue.length > 0) {
+      log(overdue);
     }
 
-    if (options.filesWithMatches) {
-      tasks.forEach(t => filesOnlyList.push(t.file));
-      return;
+    log(flatMap(todos, ([_, todos]) => todos));
+  } else {
+    const log = todos => {
+      chain(todos)
+        .groupBy(task => task.file)
+        .forEach((todos, file) => {
+          console.log(`- ${chalk.blue(file)}:`);
+
+          todos.forEach(({ text, isDone }) => {
+            const indendentText = text
+              .split("\n")
+              .map(line => `  ${line}`)
+              .join("\n");
+
+            if (isDone) {
+              console.log(chalk.gray(indendentText));
+            } else {
+              console.log(indendentText);
+            }
+          });
+        })
+        .value();
+    };
+
+    if (overdue.length > 0 && options.overdue) {
+      console.log(chalk.red("Overdue"));
+      log(overdue);
+      console.log();
     }
 
-    if (date === TODAY) {
-      console.log(chalk.green("Today"));
-    } else {
-      console.log(
-        `${chalk.green(date)} ${chalk.grey(
-          format(parse(date, DATE_FORMAT, Date.now()), "EEEE")
-        )}`
-      );
-    }
-
-    tasks.forEach(task => {
-      if (task.isDone) {
-        console.log(chalk.gray(`- ${task.file}: ${task.text}`));
+    todos.forEach(([date, tasks]) => {
+      if (date === TODAY) {
+        console.log(chalk.green("Today"));
       } else {
-        console.log(`- ${chalk.blue(task.file)}: ${task.text}`);
+        const weekday = format(parse(date, DATE_FORMAT, Date.now()), "EEEE");
+        console.log(`${chalk.green(date)} ${chalk.grey(weekday)}`);
       }
+
+      log(tasks);
+      console.log();
     });
-
-    console.log();
-  });
-
-  if (options.filesWithMatches) {
-    chain(filesOnlyList)
-      .uniq()
-      .forEach(f => console.log(f))
-      .value();
   }
 };

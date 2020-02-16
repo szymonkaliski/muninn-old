@@ -21,10 +21,24 @@ mkdirp(CONFIG_PATH);
 
 const args = yargs
   .command("config", "open configuration file")
-  .command("tasks", "find all tasks in given directory", {
-    days: { default: undefined },
-    overdue: { default: true },
-    "files-with-matches": {}
+  .command("tasks", "find tasks for specified timespan", yargs => {
+    yargs.option("days", {
+      default: undefined,
+      type: "number",
+      describe: "how many days in the future to look for"
+    });
+
+    yargs.option("overdue", {
+      default: true,
+      type: "boolean",
+      describe: "show overdue tasks"
+    });
+
+    yargs.option("vim", {
+      default: false,
+      type: "boolean",
+      describe: "format output for vim"
+    });
   })
   .command("backlinks", "find all notes related to given file", yargs => {
     yargs.option("file", {
@@ -97,7 +111,7 @@ const COMMANDS = {
       files: cache.getFiles(),
       overdue: args.overdue,
       days: args.days,
-      filesWithMatches: args["files-with-matches"]
+      vim: args.vim
     });
 
     cache.store();
