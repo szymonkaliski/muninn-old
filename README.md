@@ -18,7 +18,7 @@ I'm using it in combination with [`muninn-vim`](https://github.com/szymonkaliski
 
 ## Installation
 
-1. `npm install -g muninn`
+1. `npm install -g muninn-cli`
 2. `muninn config`, and set:
 
 ```json
