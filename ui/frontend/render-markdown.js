@@ -55,7 +55,7 @@ const MarkdownBlockquote = ({ mdast, ...args }) => (
 const MarkdownList = ({ mdast, ...args }) => {
   const el = mdast.ordered ? "ol" : "ul";
   const paddingLeft =
-    get(mdast, ["parent", "type"]) !== "listItem" ? "pl0" : "pl4";
+    get(mdast, ["parent", "type"]) !== "listItem" ? "pl0" : "pl2";
 
   return React.createElement(el, {
     className: `lh-copy list ${paddingLeft} ma0`,
@@ -82,8 +82,8 @@ const MarkdownListItem = ({ mdast, ...args }) => {
   const shouldIndentChildren = get(restChildren, [0, "type"]) !== "list";
 
   return (
-    <li className="list">
-      <div className="dib" style={{ width: "20px" }}>
+    <li className="list flex">
+      <div className="flex-shrink-0" style={{ width: "20px" }}>
         {isTodo ? (
           <input
             checked={mdast.checked}
@@ -104,19 +104,21 @@ const MarkdownListItem = ({ mdast, ...args }) => {
         )}
       </div>
 
-      <span className={mdast.checked ? "strike gray" : ""}>
-        <Markdown
-          key={firstChild.id}
-          mdast={firstChild}
-          dontWrapParagraph={true}
-          {...args}
-        />
-      </span>
+      <div>
+        <div className={mdast.checked ? "strike gray" : ""}>
+          <Markdown
+            key={firstChild.id}
+            mdast={firstChild}
+            dontWrapParagraph={true}
+            {...args}
+          />
+        </div>
 
-      <div className={shouldIndentChildren ? "pl4" : ""}>
-        {restChildren.map(child => (
-          <Markdown key={child.id} mdast={child} {...args} />
-        ))}
+        <div className={shouldIndentChildren ? "pl2" : ""}>
+          {restChildren.map(child => (
+            <Markdown key={child.id} mdast={child} {...args} />
+          ))}
+        </div>
       </div>
     </li>
   );
