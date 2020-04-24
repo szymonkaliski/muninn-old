@@ -12,7 +12,7 @@ const CACHE_FILE = path.join(CACHE_PATH, "cache.json");
 
 const createCache = () => {
   const cache = new LRU({
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
   if (!fs.existsSync(CACHE_PATH)) {
@@ -23,8 +23,7 @@ const createCache = () => {
 
   if (fs.existsSync(CACHE_FILE)) {
     try {
-      // cachedData = require(CACHE_FILE);
-      cachedData = JSON.parse(fs.readFileSync(CACHE_FILE), "utf-8");
+      cachedData = JSON.parse(fs.readFileSync(CACHE_FILE));
     } catch (e) {
       console.error(e);
     }
@@ -48,13 +47,13 @@ const createCache = () => {
   return { cache, store, clear };
 };
 
-module.exports = dir => {
+module.exports = (dir) => {
   const { cache, store, clear } = createCache();
 
   let needsStoring = false;
   let files = {};
 
-  const parseFiles = dir => {
+  const parseFiles = (dir) => {
     const files = glob.sync("**/*.md", { cwd: dir });
 
     return files.reduce((memo, file) => {
@@ -90,6 +89,6 @@ module.exports = dir => {
     store: () => needsStoring && store(),
     clear,
 
-    getFiles: () => files // not sure why just putting `files: files` here doesn't work
+    getFiles: () => files, // not sure why just putting `files: files` here doesn't work
   };
 };

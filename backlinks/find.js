@@ -1,14 +1,14 @@
 const path = require("path");
 const visit = require("unist-util-visit-parents");
-const { chain, get, last, findLastIndex } = require("lodash");
+const { chain, get, last, findLastIndex, identity } = require("lodash");
 
-const findMeaningfulParent = parents => {
+const findMeaningfulParent = (parents) => {
   const parentTypes = ["listItem", "blockquote", "paragraph"];
 
   return parents[
     chain(parentTypes)
-      .map(type => findLastIndex(parents, node => node.type === type))
-      .filter(idx => idx >= 0)
+      .map((type) => findLastIndex(parents, (node) => node.type === type))
+      .filter((idx) => idx >= 0)
       .min()
       .value()
   ];
@@ -52,11 +52,7 @@ module.exports = ({ files, file }) => {
   const hasTitle = content.split("\n")[0].startsWith("# ");
 
   const title =
-    hasTitle &&
-    content
-      .split("\n")[0]
-      .replace(/^#+\ /, "")
-      .toLowerCase();
+    hasTitle && content.split("\n")[0].replace(/^#+\ /, "").toLowerCase();
 
   const fileSearch = file.replace(/\ /g, "\\ ");
 
@@ -69,11 +65,11 @@ module.exports = ({ files, file }) => {
         mdast,
         fileName,
         fileSearch,
-        titleSearch: title
-      })
+        titleSearch: title,
+      }),
     }))
     .flatMap(({ linked, fileName }) =>
-      linked.map(mdast => ({ fileName, mdast }))
+      linked.filter(identity).map((mdast) => ({ fileName, mdast }))
     )
     .sortBy(["fileName", ({ mdast }) => mdast.id])
     .uniqWith((a, b) => {
